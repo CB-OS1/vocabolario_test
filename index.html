@@ -1,6 +1,42 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+<!--
+  VocabolarIo -- Changelog
+  ========================
+  Hinweis: APP_VERSION und dieser Changelog-Kommentar gab es bisher noch
+  nicht in dieser Datei -- ab V16 neu eingeführt, rückwirkend kurz notiert.
+
+  V19: Neuer "Liste"-Button auf der Sortier-Auswahl -- zeigt das Deck als
+       Tabelle (nur it/de, Reihenfolge nach gewählter Richtung). Abstand vor
+       "App zurücksetzen" wieder verkleinert (jetzt bündig unter der letzten
+       Deck-Kachel statt abgesetzt).
+  V18: Natives confirm() beim App-Reset durch eigenes, gestyltes
+       Bestätigungs-Dialogfeld ersetzt (zeigeBestaetigung()). Abstand vor
+       "App zurücksetzen" vergrößert (deutlicher abgesetzt).
+  V17: "App zurücksetzen" nur noch auf der Deck-Auswahl sichtbar (zentriert
+       unter den Kacheln, nicht mehr in der globalen Fußzeile). Richtungs-
+       und Sortier-Auswahl: Erklärtexte entfernt, beide Buttons pro Screen
+       jetzt farblich identisch (var(--mare), vorher unterschiedlich).
+  V16: "App zurücksetzen" ergänzt (löscht vocab-datei + alle
+       vocab-progress-*-Keys, danach location.reload()). APP_VERSION
+       eingeführt.
+  V15: Laden-Hub: "Eigene Vokabeln laden" im selben Kachel-Stil wie die
+       Config-Buttons; Erklärsatz in der Deck-Auswahl entfernt.
+  V14: Neuer "Laden"-Hub -- oben eigene Datei hochladen, unten vordefinierte
+       Vokabelsets aus config.xlsx als Kacheln.
+  V13: GitHub-Raw-URL wird automatisch aus der aktuellen Seiten-Adresse
+       abgeleitet (statt fest codiertem Repo-Namen).
+  V12: "VocabolarIo laden"-Button lädt config.xlsx und zeigt die darin
+       gelisteten Dateien zur Auswahl.
+  V11: Web-App-Manifest + Icons ergänzt (Installierbarkeit auf Android/iOS);
+       fester "VocabolarIo laden"-Button (eine feste Datei).
+  V10: localStorage-Polyfill für window.storage (Persistenz funktioniert
+       jetzt auch außerhalb der Claude-Artefakt-Umgebung, z.B. GitHub Pages).
+  V9 und früher: siehe frühere Dateiversionen (u.a. -care/-gare-Konjugation,
+       Beispielsatz auf der Frage-Seite).
+-->
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
 <title>Vocabolario — Italienisch lernen</title>
@@ -339,8 +375,56 @@
     margin-top: 4px;
     display:block;
   }
-  .niveau-btn.a1 .label{ color: var(--cielo); }
+  .niveau-btn.a1 .label{ color: var(--mare); }
   .niveau-btn.a2 .label{ color: var(--mare); }
+
+  /* Dritter, dünnerer Button auf der Sortier-Auswahl ("Liste") -- bewusst
+     kompakter und leicht abgesetzt, damit klar ist: andere Kategorie von
+     Aktion als "Sortiert"/"Gemischt" (kein Karteikarten-Modus, sondern
+     eine Tabellenansicht). */
+  .niveau-btn.liste{
+    padding: 10px 20px;
+    text-align:center;
+    border-width: 1px;
+    box-shadow: 2px 2px 0 var(--inchiostro);
+    margin-top: 8px;
+  }
+  .niveau-btn.liste:active{ box-shadow: 1px 1px 0 var(--inchiostro); }
+  .niveau-btn.liste .label{
+    font-size:15px;
+    color: var(--mare);
+  }
+
+  /* Tabellenansicht (Liste) */
+  .liste-wrapper{
+    max-height: 60vh;
+    overflow-y:auto;
+    width:100%;
+    max-width:420px;
+    border: 1.5px solid var(--inchiostro);
+    border-radius: 12px;
+  }
+  .liste-tabelle{
+    width:100%;
+    border-collapse: collapse;
+    font-size:14px;
+  }
+  .liste-tabelle th{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    text-align:left;
+    padding: 9px 12px;
+    border-bottom: 2px solid var(--inchiostro);
+    color: var(--inchiostro);
+    background: var(--carta);
+    position: sticky;
+    top: 0;
+  }
+  .liste-tabelle td{
+    padding: 7px 12px;
+    border-bottom: 1px solid rgba(23,50,79,0.12);
+  }
+  .liste-tabelle tr:nth-child(even) td{ background: rgba(63,143,209,0.06); }
   .niveau-wechsel{
     text-align:center;
     margin-top: 12px;
@@ -391,6 +475,49 @@
   }
   .niveau-btn.eigene .label{ color: var(--azzurro); }
 
+  /* Eigenes Bestätigungs-Dialogfeld (ersetzt das native, hässliche confirm()) */
+  .modal-overlay{
+    position:fixed; inset:0;
+    background: rgba(23,50,79,0.55);
+    display:flex; align-items:center; justify-content:center;
+    z-index:1000;
+    padding:20px;
+  }
+  .modal-box{
+    background: var(--carta);
+    border-radius: 18px;
+    padding: 28px 24px;
+    max-width: 340px;
+    width:100%;
+    text-align:center;
+    box-shadow: 5px 5px 0 var(--inchiostro);
+  }
+  .modal-frage{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:16px;
+    color: var(--inchiostro);
+    margin-bottom:22px;
+    line-height:1.45;
+  }
+  .modal-aktionen{
+    display:flex;
+    gap:12px;
+    justify-content:center;
+  }
+  .modal-btn{
+    border:none;
+    border-radius: 999px;
+    padding: 11px 22px;
+    font-size:14px;
+    font-weight:600;
+    font-family: inherit;
+    cursor:pointer;
+  }
+  .modal-btn:active{ transform: translate(1px,1px); }
+  .modal-abbrechen{ background: #dfe9f2; color: var(--inchiostro); }
+  .modal-bestaetigen{ background: var(--mare); color: #fff; }
+
   /* "Vokabeln laden"-Link, immer zentriert unten, unabhängig vom Zustand */
   .datei-laden-row{
     text-align:center;
@@ -402,6 +529,11 @@
     opacity:0.55;
     text-decoration: underline;
     cursor:pointer;
+  }
+  /* Bewusst blasser als der normale Link -- destruktive Aktion, soll nicht
+     versehentlich angetippt werden, aber trotzdem auffindbar bleiben. */
+  .datei-laden-row a.gefahr{
+    opacity:0.32;
   }
   .datei-laden-fehler{
     background: #e8f1f7;
@@ -1211,6 +1343,12 @@ function gibBeispiel(v, sprache){
 }
 
 // ---------- App-Zustand ----------
+// Neu ab hier: APP_VERSION gab es vorher nicht in dieser Datei. Dient als
+// Referenz für den Changelog-Kommentar am Dateikopf und wird beim Start in
+// die Konsole geschrieben -- praktisch, um im Browser (F12) schnell zu
+// sehen, welche Version gerade tatsächlich deployed/geladen ist.
+const APP_VERSION = 'V19';
+
 let AKTIVE_DATEI = null;  // { blattname: [ {it,de,kat,typ}, ... ], ... } — alle Decks der zuletzt geladenen xlsx
 let DECK_NAME = null;     // Name des aktuell gewählten Arbeitsblatts/Decks
 let RICHTUNG = 'it-de';   // 'it-de' = Italienisch zeigen, Deutsch erraten | 'de-it' = umgekehrt
@@ -1290,6 +1428,56 @@ async function loescheAltenFortschritt(){
   }catch(e){}
 }
 
+// ---------- Kompletter App-Reset ----------
+// Eigenes Bestätigungs-Dialogfeld statt des nativen confirm() -- sieht in
+// jedem Browser gleich aus (passt zum Rest der App) statt dem hässlichen,
+// browserabhängigen System-Popup. Als eigene, allgemeine Funktion gebaut
+// (nicht fest in appZuruecksetzen() verdrahtet), falls später an anderer
+// Stelle nochmal eine Bestätigung gebraucht wird.
+//
+// Gibt ein Promise<boolean> zurück, genau wie das normale confirm() einen
+// synchronen boolean liefert -- await zeigeBestaetigung(...) verhält sich
+// im aufrufenden Code also fast identisch zu vorher.
+function zeigeBestaetigung(frage){
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal-box">
+        <div class="modal-frage">${frage}</div>
+        <div class="modal-aktionen">
+          <button class="modal-btn modal-abbrechen" id="modalAbbrechen">Abbrechen</button>
+          <button class="modal-btn modal-bestaetigen" id="modalBestaetigen">Zurücksetzen</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const aufraeumen = (ergebnis) => {
+      document.body.removeChild(overlay);
+      resolve(ergebnis);
+    };
+    overlay.querySelector('#modalAbbrechen').onclick = () => aufraeumen(false);
+    overlay.querySelector('#modalBestaetigen').onclick = () => aufraeumen(true);
+    // Klick auf den abgedunkelten Hintergrund (nicht auf die Box selbst)
+    // zählt wie "Abbrechen" -- gängiges Verhalten bei solchen Dialogen.
+    overlay.addEventListener('click', e => { if(e.target === overlay) aufraeumen(false); });
+  });
+}
+
+async function appZuruecksetzen(){
+  const bestaetigt = await zeigeBestaetigung(
+    'Wirklich die komplette App zurücksetzen?<br><br>Deine geladene Vokabeldatei und der Lernfortschritt aller Decks werden unwiderruflich gelöscht.'
+  );
+  if(!bestaetigt) return;
+
+  try{ await window.storage.delete('vocab-datei'); }catch(e){}
+  await loescheAltenFortschritt();
+
+  location.reload();
+}
+
+
 // ---------- Persistenz: Fortschritt pro Deck ----------
 async function ladeFortschritt(deckName){
   try{
@@ -1350,12 +1538,17 @@ function zeigeDeckAuswahl(){
     <div class="niveau-screen">
       <div class="niveau-frage">Welches Deck möchtest du lernen?</div>
       <div class="niveau-optionen">${kacheln}</div>
+      <div class="datei-laden-row" style="margin-top:14px;"><a id="linkAppReset" class="gefahr">App zurücksetzen</a></div>
     </div>
   `;
 
   stage.querySelectorAll('[data-deck]').forEach(el => {
     el.onclick = () => waehleDeck(el.getAttribute('data-deck'));
   });
+
+  document.getElementById('linkAppReset').onclick = () => {
+    appZuruecksetzen();
+  };
 }
 
 // "Laden"-Hub: zwei getrennte Wege, um an Vokabeln zu kommen.
@@ -1701,7 +1894,6 @@ function zeigeRichtungsAuswahl(){
   stage.innerHTML = `
     <div class="niveau-screen">
       <div class="niveau-frage">In welche Richtung möchtest du lernen?</div>
-      <div class="niveau-unter">${AKTIVE_DATEI[DECK_NAME].length} Vokabeln aus „${DECK_NAME}“.</div>
       <div class="niveau-optionen">
         <div class="niveau-btn a1" id="btnItDe">
           <span class="label">IT → DE</span>
@@ -1727,7 +1919,6 @@ function zeigeSortierAuswahl(){
   stage.innerHTML = `
     <div class="niveau-screen">
       <div class="niveau-frage">Sortiert oder gemischt lernen?</div>
-      <div class="niveau-unter">Sortiert = Reihenfolge wie in deiner Datei. Gemischt = zufällige Reihenfolge.</div>
       <div class="niveau-optionen">
         <div class="niveau-btn a1" id="btnSortiert">
           <span class="label">Sortiert</span>
@@ -1737,11 +1928,57 @@ function zeigeSortierAuswahl(){
           <span class="label">Gemischt</span>
           <span class="desc">Zufällige Reihenfolge</span>
         </div>
+        <div class="niveau-btn liste" id="btnListe">
+          <span class="label">Liste</span>
+        </div>
       </div>
     </div>
   `;
   document.getElementById('btnSortiert').onclick = () => waehleSortierung(true);
   document.getElementById('btnGemischt').onclick = () => waehleSortierung(false);
+  document.getElementById('btnListe').onclick = () => zeigeListenAnsicht();
+}
+
+// Zeigt das komplette Deck als Tabelle (nur Spalten it/de, alle anderen
+// Spalten -- kat, notiz1, notiz2, typ -- werden hier bewusst ignoriert).
+// Reihenfolge der beiden Spalten richtet sich nach RICHTUNG, das auf dem
+// vorherigen Screen (Richtungs-Auswahl) gewählt wurde -- so entspricht die
+// Liste optisch demselben "Frage zuerst"-Prinzip wie die Karteikarten.
+// Nutzt bewusst die ORIGINAL-Reihenfolge aus der xlsx (nicht VOKABELN, das
+// bei "Gemischt" durchmischt sein könnte) -- eine Liste als Nachschlagewerk
+// sollte unabhängig von der Karteikarten-Reihenfolge stabil bleiben.
+function zeigeListenAnsicht(){
+  statsRow.style.display = 'none';
+  resetRow.style.display = 'none';
+  untertitelText.textContent = `Deck · ${DECK_NAME}`;
+
+  const ersteSpalte = RICHTUNG === 'de-it' ? 'de' : 'it';
+  const zweiteSpalte = RICHTUNG === 'de-it' ? 'it' : 'de';
+  const ersteName = RICHTUNG === 'de-it' ? 'Deutsch' : 'Italienisch';
+  const zweiteName = RICHTUNG === 'de-it' ? 'Italienisch' : 'Deutsch';
+
+  const escape = s => String(s || '').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+
+  const zeilen = AKTIVE_DATEI[DECK_NAME].map(v => `
+    <tr><td>${escape(v[ersteSpalte])}</td><td>${escape(v[zweiteSpalte])}</td></tr>
+  `).join('');
+
+  stage.innerHTML = `
+    <div class="niveau-screen">
+      <div class="niveau-frage">${DECK_NAME}</div>
+      <div class="liste-wrapper">
+        <table class="liste-tabelle">
+          <thead><tr><th>${ersteName}</th><th>${zweiteName}</th></tr></thead>
+          <tbody>${zeilen}</tbody>
+        </table>
+      </div>
+      <div style="margin-top:16px;">
+        <button id="btnListeZurueck" style="box-shadow:3px 3px 0 var(--inchiostro); font-size:13px; padding:10px 0;">← Zurück</button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('btnListeZurueck').onclick = () => zeigeSortierAuswahl();
 }
 
 function waehleSortierung(sortiert){
@@ -1903,6 +2140,7 @@ document.getElementById('linkLaden').onclick = () => {
 };
 
 (async function init(){
+  console.log('VocabolarIo', APP_VERSION);
   statsRow.style.display = 'none';
   resetRow.style.display = 'none';
   const gespeicherteDatei = await ladeDatei();
