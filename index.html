@@ -415,6 +415,65 @@
     text-align:center;
     display:none;
   }
+
+  /* Laden-Übersicht: eigene Vokabeln (oben) vs. vordefinierte Sets (unten) */
+  .lade-trenner{
+    width:100%;
+    max-width:320px;
+    border:none;
+    border-top:1.5px solid var(--inchiostro);
+    opacity:0.18;
+    margin: 26px 0 16px;
+  }
+  .lade-unterschrift{
+    font-size:11px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    opacity:0.45;
+    margin-bottom:12px;
+    width:100%;
+    max-width:320px;
+    text-align:left;
+  }
+  .lade-liste{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    width:100%;
+    max-width:320px;
+  }
+  /* Bewusst anderer Stil als .niveau-btn: kompakter, mit Icon in einer Zeile,
+     damit auf den ersten Blick klar ist "hier lädt man etwas nach", statt
+     wie bei der Deck-Auswahl ein Inhaltsverzeichnis zu wirken. */
+  .lade-kachel{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    text-align:left;
+    border: 1.5px solid var(--mare);
+    border-radius: 12px;
+    padding: 12px 16px;
+    background: #eef5fa;
+    cursor:pointer;
+    box-shadow: 3px 3px 0 var(--mare);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+  .lade-kachel:active{ transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--mare); }
+  .lade-icon{ font-size:18px; flex-shrink:0; }
+  .lade-label{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size: 15px;
+    color: var(--inchiostro);
+  }
+  .lade-status{
+    font-size:12px;
+    opacity:0.5;
+    text-align:center;
+    width:100%;
+  }
+  .lade-status-fehler{ color: var(--mare); opacity:1; }
 </style>
 </head>
 <body>
@@ -433,8 +492,7 @@
   <div class="stage" id="stage"></div>
 
   <div class="reset-row" id="resetRow"><a id="resetLink">Fortschritt zurücksetzen</a> · <a id="deckLink">Deck wechseln</a></div>
-  <div class="datei-laden-row"><a id="linkVokabelnLaden">Vokabeln laden</a> · <a id="linkStandardLaden">VocabolarIo laden</a></div>
-  <div class="datei-laden-fehler" id="standardLadenFehler"></div>
+  <div class="datei-laden-row"><a id="linkLaden">Laden</a></div>
 </div>
 
 <script>
@@ -1301,40 +1359,88 @@ function zeigeDeckAuswahl(){
   });
 }
 
-// Zeigt eine Kachel pro Zeile aus config.xlsx (dynamisch generiert -- keine
-// Codeänderung nötig, wenn im Repo eine neue Zeile dazukommt). Klick auf eine
-// Kachel lädt die zugehörige Vokabeldatei nach, genau wie beim bisherigen
-// direkten "VocabolarIo laden", nur eben für eine von mehreren Dateien.
-function zeigeVocabolarioAuswahl(eintraege){
+// "Laden"-Hub: zwei getrennte Wege, um an Vokabeln zu kommen.
+// 1) Oben, leicht abgesetzt: eigene Datei hochladen (führt zu zeigeUploadScreen()).
+// 2) Unten, per Trennstrich abgetrennt: eine der vordefinierten Dateien aus
+//    config.xlsx laden. Diese Liste wird erst NACH dem Rendern des Bildschirms
+//    asynchron nachgeladen -- so ist "Eigene Vokabeln laden" sofort nutzbar,
+//    auch falls das Nachladen von config.xlsx (Netzwerk!) noch dauert oder
+//    komplett fehlschlägt.
+function zeigeLadenAuswahl(){
   statsRow.style.display = 'none';
   resetRow.style.display = 'none';
   untertitelText.textContent = 'Italienisch';
 
-  const kacheln = eintraege.map((e, i) => `
-    <div class="niveau-btn eigene" data-index="${i}">
-      <span class="label">${e.anzeigename.replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))}</span>
-      <span class="desc">${e.dateiname.replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))}</span>
-    </div>
-  `).join('');
-
   stage.innerHTML = `
     <div class="niveau-screen">
-      <div class="niveau-frage">Welche Vokabeldatei möchtest du laden?</div>
-      <div class="niveau-unter">Diese Liste kommt aus config.xlsx im GitHub-Repo -- neue Zeilen dort erscheinen hier automatisch.</div>
-      <div class="niveau-optionen">${kacheln}</div>
-      <div class="upload-fehler" id="configAuswahlFehler"></div>
+      <div class="niveau-frage">Vokabeln laden</div>
+      <div class="niveau-optionen" style="margin-bottom:0;">
+        <div class="niveau-btn eigene" id="btnEigeneLaden">
+          <span class="label">Eigene Vokabeln laden</span>
+          <span class="desc">Eigene XLSX-Datei vom Gerät hochladen</span>
+        </div>
+      </div>
+
+      <hr class="lade-trenner">
+
+      <div class="lade-unterschrift">Vordefinierte Vokabelsets laden</div>
+      <div class="lade-liste" id="ladeListe">
+        <div class="lade-status" id="ladeStatus">Lädt Vorlagen …</div>
+      </div>
+      <div class="upload-fehler" id="ladeAuswahlFehler"></div>
+
       <div style="margin-top:16px;">
-        <button id="btnConfigZurueck" style="box-shadow:3px 3px 0 var(--inchiostro); font-size:13px; padding:10px 0;">← Abbrechen</button>
+        <button id="btnLadenZurueck" style="box-shadow:3px 3px 0 var(--inchiostro); font-size:13px; padding:10px 0;">← Abbrechen</button>
       </div>
     </div>
   `;
 
-  stage.querySelectorAll('[data-index]').forEach(el => {
+  document.getElementById('btnEigeneLaden').onclick = () => {
+    zeigeUploadScreen();
+  };
+  document.getElementById('btnLadenZurueck').onclick = () => {
+    if(AKTIVE_DATEI) zeigeDeckAuswahl(); else zeigeLeerenZustand();
+  };
+
+  ladeConfigVonGithub()
+    .then(eintraege => renderVordefinierteVokabelsets(eintraege))
+    .catch(err => {
+      const statusEl = document.getElementById('ladeStatus');
+      if(statusEl){
+        statusEl.textContent = 'Konnte Vorlagen nicht laden: ' + err.message;
+        statusEl.classList.add('lade-status-fehler');
+      }
+    });
+}
+
+// Rendert die Kacheln der vordefinierten Sets, sobald config.xlsx da ist.
+// Eigene Funktion (statt alles in zeigeLadenAuswahl), weil das Nachladen
+// asynchron passiert -- der Nutzer könnte bis dahin längst weitergeklickt
+// haben, daher der Check "gibt's das Zielelement überhaupt noch".
+function renderVordefinierteVokabelsets(eintraege){
+  const ziel = document.getElementById('ladeListe');
+  if(!ziel) return;
+
+  if(eintraege.length === 0){
+    ziel.innerHTML = `<div class="lade-status">Keine Einträge in config.xlsx gefunden.</div>`;
+    return;
+  }
+
+  const escape = s => s.replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+
+  ziel.innerHTML = eintraege.map((e, i) => `
+    <div class="lade-kachel" data-index="${i}">
+      <span class="lade-icon">📥</span>
+      <span class="lade-label">${escape(e.anzeigename)}</span>
+    </div>
+  `).join('');
+
+  ziel.querySelectorAll('[data-index]').forEach(el => {
     el.onclick = async () => {
       const eintrag = eintraege[Number(el.getAttribute('data-index'))];
-      const fehlerEl = document.getElementById('configAuswahlFehler');
+      const fehlerEl = document.getElementById('ladeAuswahlFehler');
       fehlerEl.style.display = 'none';
-      const labelEl = el.querySelector('.label');
+      const labelEl = el.querySelector('.lade-label');
       const textVorher = labelEl.textContent;
       labelEl.textContent = 'Lädt …';
       try{
@@ -1353,10 +1459,6 @@ function zeigeVocabolarioAuswahl(eintraege){
       }
     };
   });
-
-  document.getElementById('btnConfigZurueck').onclick = () => {
-    if(AKTIVE_DATEI) zeigeDeckAuswahl(); else zeigeLeerenZustand();
-  };
 }
 
 function zeigeUploadScreen(){
@@ -1380,7 +1482,7 @@ function zeigeUploadScreen(){
     </div>
   `;
   document.getElementById('btnZurueck').onclick = () => {
-    if(AKTIVE_DATEI) zeigeDeckAuswahl(); else zeigeLeerenZustand();
+    zeigeLadenAuswahl();
   };
 
   const fileInput = document.getElementById('fileInput');
@@ -1797,29 +1899,8 @@ document.getElementById('deckLink').onclick = () => {
   zeigeDeckAuswahl();
 };
 
-document.getElementById('linkVokabelnLaden').onclick = () => {
-  zeigeUploadScreen();
-};
-
-document.getElementById('linkStandardLaden').onclick = async () => {
-  const link = document.getElementById('linkStandardLaden');
-  const fehlerEl = document.getElementById('standardLadenFehler');
-  fehlerEl.style.display = 'none';
-
-  const textVorher = link.textContent;
-  link.textContent = 'Lädt …';
-  try{
-    const eintraege = await ladeConfigVonGithub();
-    if(eintraege.length === 0){
-      throw new Error('config.xlsx gefunden, aber keine gültigen Zeilen darin (Spalten "Anzeigename"/"Dateiname" fehlen?).');
-    }
-    zeigeVocabolarioAuswahl(eintraege);
-  } catch(e){
-    fehlerEl.textContent = 'Konnte Config nicht laden: ' + e.message;
-    fehlerEl.style.display = 'block';
-  } finally {
-    link.textContent = textVorher;
-  }
+document.getElementById('linkLaden').onclick = () => {
+  zeigeLadenAuswahl();
 };
 
 (async function init(){
