@@ -7,6 +7,11 @@
   Hinweis: APP_VERSION und dieser Changelog-Kommentar gab es bisher noch
   nicht in dieser Datei -- ab V16 neu eingeführt, rückwirkend kurz notiert.
 
+  V20: Warnungstext beim App-Reset gekürzt ("VocabolarIo wirklich
+       zurücksetzen?"). "VocabolarIo"-Schriftzug oben links jetzt klickbar
+       (Home-Funktion, wie "Deck wechseln", mit Fallback auf den leeren
+       Startzustand falls noch keine Datei geladen ist). Beschreibungstext
+       bei "Sortiert" geändert zu "Immer gleiche Reihenfolge".
   V19: Neuer "Liste"-Button auf der Sortier-Auswahl -- zeigt das Deck als
        Tabelle (nur it/de, Reihenfolge nach gewählter Richtung). Abstand vor
        "App zurücksetzen" wieder verkleinert (jetzt bündig unter der letzten
@@ -612,7 +617,7 @@
 <div class="app">
   <header>
     <div>
-      <div class="titel">Vocabolar<em>Io</em></div>
+      <div class="titel" id="logoTitel" style="cursor:pointer;">Vocabolar<em>Io</em></div>
       <div class="untertitel" id="untertitelText">Italienisch</div>
     </div>
   </header>
@@ -1347,7 +1352,7 @@ function gibBeispiel(v, sprache){
 // Referenz für den Changelog-Kommentar am Dateikopf und wird beim Start in
 // die Konsole geschrieben -- praktisch, um im Browser (F12) schnell zu
 // sehen, welche Version gerade tatsächlich deployed/geladen ist.
-const APP_VERSION = 'V19';
+const APP_VERSION = 'V20';
 
 let AKTIVE_DATEI = null;  // { blattname: [ {it,de,kat,typ}, ... ], ... } — alle Decks der zuletzt geladenen xlsx
 let DECK_NAME = null;     // Name des aktuell gewählten Arbeitsblatts/Decks
@@ -1466,9 +1471,7 @@ function zeigeBestaetigung(frage){
 }
 
 async function appZuruecksetzen(){
-  const bestaetigt = await zeigeBestaetigung(
-    'Wirklich die komplette App zurücksetzen?<br><br>Deine geladene Vokabeldatei und der Lernfortschritt aller Decks werden unwiderruflich gelöscht.'
-  );
+  const bestaetigt = await zeigeBestaetigung('VocabolarIo wirklich zurücksetzen?');
   if(!bestaetigt) return;
 
   try{ await window.storage.delete('vocab-datei'); }catch(e){}
@@ -1922,7 +1925,7 @@ function zeigeSortierAuswahl(){
       <div class="niveau-optionen">
         <div class="niveau-btn a1" id="btnSortiert">
           <span class="label">Sortiert</span>
-          <span class="desc">Genau wie in der xlsx</span>
+          <span class="desc">Immer gleiche Reihenfolge</span>
         </div>
         <div class="niveau-btn a2" id="btnGemischt">
           <span class="label">Gemischt</span>
@@ -2133,6 +2136,16 @@ document.getElementById('resetLink').onclick = async () => {
 
 document.getElementById('deckLink').onclick = () => {
   zeigeDeckAuswahl();
+};
+
+// "VocabolarIo"-Schriftzug oben links fungiert wie eine Home-Taste.
+// Anders als "deckLink" (der nur sichtbar ist, wenn schon ein Deck aktiv
+// ist) ist der Titel auf JEDEM Bildschirm sichtbar -- auch bevor überhaupt
+// eine Datei geladen wurde. Deshalb hier zusätzlich abgesichert: ohne
+// geladene Datei zurück zum leeren Startzustand statt zu einem Absturz,
+// weil zeigeDeckAuswahl() ohne AKTIVE_DATEI nicht funktionieren würde.
+document.getElementById('logoTitel').onclick = () => {
+  if(AKTIVE_DATEI) zeigeDeckAuswahl(); else zeigeLeerenZustand();
 };
 
 document.getElementById('linkLaden').onclick = () => {
