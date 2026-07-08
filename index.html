@@ -492,7 +492,7 @@
   <div class="stage" id="stage"></div>
 
   <div class="reset-row" id="resetRow"><a id="resetLink">Fortschritt zurücksetzen</a> · <a id="deckLink">Deck wechseln</a></div>
-  <div class="datei-laden-row"><a id="linkLaden">Laden</a></div>
+  <div class="datei-laden-row"><a id="linkLaden">VocabolarIo laden</a></div>
 </div>
 
 <script>
@@ -1349,7 +1349,6 @@ function zeigeDeckAuswahl(){
   stage.innerHTML = `
     <div class="niveau-screen">
       <div class="niveau-frage">Welches Deck möchtest du lernen?</div>
-      <div class="niveau-unter">Jede Kachel entspricht einem Arbeitsblatt deiner Datei.</div>
       <div class="niveau-optionen">${kacheln}</div>
     </div>
   `;
@@ -1374,10 +1373,10 @@ function zeigeLadenAuswahl(){
   stage.innerHTML = `
     <div class="niveau-screen">
       <div class="niveau-frage">Vokabeln laden</div>
-      <div class="niveau-optionen" style="margin-bottom:0;">
-        <div class="niveau-btn eigene" id="btnEigeneLaden">
-          <span class="label">Eigene Vokabeln laden</span>
-          <span class="desc">Eigene XLSX-Datei vom Gerät hochladen</span>
+      <div class="lade-liste" style="margin-bottom:0;">
+        <div class="lade-kachel" id="btnEigeneLaden">
+          <span class="lade-icon">📂</span>
+          <span class="lade-label">Eigene Vokabeln laden (eigene xlsx)</span>
         </div>
       </div>
 
