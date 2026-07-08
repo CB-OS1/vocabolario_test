@@ -1538,7 +1538,20 @@ function _parseWorkbook(file, resolve, reject){
 // raw.githubusercontent.com liefert die Rohdatei (nicht die HTML-Ansichtsseite
 // von github.com) und setzt CORS-Header, die fetch() von einer anderen Domain
 // (deiner github.io-Seite) aus erlauben.
-const GITHUB_RAW_BASIS = 'https://raw.githubusercontent.com/CB-OS1/vocabolario/main/';
+//
+// Statt Benutzername/Repo fest einzutragen, leiten wir beides aus der
+// aktuellen Seiten-URL ab (window.location). Vorteil: derselbe Code
+// funktioniert unverändert in jedem Repo -- auch in einem separaten
+// Test-Repo wie "vocabolario_test" -- ohne dass hier je eine URL von Hand
+// angepasst werden muss.
+// Erwartetes Format: https://BENUTZERNAME.github.io/REPO-NAME/...
+function ermittleGithubRawBasis(){
+  const benutzername = window.location.hostname.split('.')[0]; // "cb-os1" aus "cb-os1.github.io"
+  const pfadTeile = window.location.pathname.split('/').filter(Boolean);
+  const repo = pfadTeile[0] || '';
+  return `https://raw.githubusercontent.com/${benutzername}/${repo}/main/`;
+}
+const GITHUB_RAW_BASIS = ermittleGithubRawBasis();
 
 // Lädt eine beliebige Datei aus dem Repo per Dateinamen und gibt das fertig
 // eingelesene Workbook zurück. Wird sowohl vom Config-Import als auch vom
