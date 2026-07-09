@@ -7,6 +7,11 @@
   Hinweis: APP_VERSION und dieser Changelog-Kommentar gab es bisher noch
   nicht in dieser Datei -- ab V16 neu eingeführt, rückwirkend kurz notiert.
 
+  V21: notiz1/notiz2 sind jetzt zwei getrennte Kartenseiten zum Umblättern
+       (vorher eine gemeinsame, zweigeteilte Notiz-Seite). Zeilenumbrüche
+       aus der xlsx-Zelle (Strg+Enter/Alt+Enter) werden jetzt auf allen
+       Kartenseiten (Frage, Antwort, Kategorie, Notizen) als <br> dargestellt
+       -- vorher wurden sie von HTML stillschweigend ignoriert.
   V20: Warnungstext beim App-Reset gekürzt ("VocabolarIo wirklich
        zurücksetzen?"). "VocabolarIo"-Schriftzug oben links jetzt klickbar
        (Home-Funktion, wie "Deck wechseln", mit Fallback auf den leeren
@@ -254,29 +259,6 @@
     color: var(--azzurro);
     max-width: 90%;
     white-space: pre-wrap;
-  }
-
-  /* Zweigeteilte Notiz-Seite: notiz1 immer oben, notiz2 immer unten.
-     flex-direction:column + justify-content:center sorgt dafür, dass bei nur
-     einem gefüllten Feld der Text zentriert bleibt statt an einer Kante zu kleben. */
-  .notiz-doppelt{
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    gap:16px;
-    width:100%;
-  }
-  .notiz-abschnitt{
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap:4px;
-  }
-  .notiz-trenner{
-    width:50%;
-    height:1px;
-    background: var(--linea);
   }
 
   .controls{
@@ -1263,6 +1245,21 @@ function konjugiere(infinitiv, typ){
 
 function istVerb(v){ return v.typ && v.typ.startsWith("v:"); }
 
+// Wandelt den Text EXAKT so um, wie er in der xlsx-Zelle steht -- inklusive
+// Zeilenumbrüchen, die durch Strg+Enter (bzw. Alt+Enter) innerhalb einer
+// Zelle entstanden sind. SheetJS liest solche Umbrüche als normale "\n"-
+// Zeichen im String ein; ein HTML-<div> ignoriert "\n" aber standardmäßig
+// (Whitespace wird zusammengefasst), deshalb hier die Umwandlung in <br>.
+// Escaped zusätzlich <, >, & -- sonst könnte durch das nachträgliche
+// Einfügen von <br> mitten in unescape-tem Text kaputtes HTML entstehen,
+// falls eine Zelle zufällig eines dieser Zeichen enthält.
+function zellenTextHTML(text){
+  if(text === null || text === undefined) return '';
+  return String(text)
+    .replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))
+    .replace(/\r\n|\r|\n/g, '<br>');
+}
+
 // Gibt es für diese Karte überhaupt eine Notiz-Seite? Ja, sobald mindestens
 // eines der beiden Felder gefüllt ist. Eine Funktion für diese Prüfung, statt
 // "v.notiz1 || v.notiz2" viermal im Code zu wiederholen (siehe maxZustandFuer,
@@ -1272,11 +1269,15 @@ function hatNotiz(v){
 }
 
 // Höchster erreichbarer zustand-Wert für eine Karte. Reihenfolge ist immer
-// front(0) -> back(1) -> [konjugation, nur bei Verben] -> [notiz, nur wenn vorhanden].
-// Die Notiz-Position hängt davon ab, ob vorher noch die Konjugationsseite kommt.
+// front(0) -> back(1) -> [konjugation, nur bei Verben] -> [notiz1, falls
+// vorhanden] -> [notiz2, falls vorhanden]. notiz1 und notiz2 zählen jetzt
+// als ZWEI getrennte Zustände (zwei separate Karten zum Umblättern),
+// nicht mehr als eine gemeinsame Notiz-Seite.
 function maxZustandFuer(v){
-  const nachKonjugation = istVerb(v) ? 2 : 1;
-  return hatNotiz(v) ? nachKonjugation + 1 : nachKonjugation;
+  let max = istVerb(v) ? 2 : 1;
+  if(v.notiz1) max += 1;
+  if(v.notiz2) max += 1;
+  return max;
 }
 
 // ---------- Automatische Worttyp-Erkennung ----------
@@ -1352,7 +1353,7 @@ function gibBeispiel(v, sprache){
 // Referenz für den Changelog-Kommentar am Dateikopf und wird beim Start in
 // die Konsole geschrieben -- praktisch, um im Browser (F12) schnell zu
 // sehen, welche Version gerade tatsächlich deployed/geladen ist.
-const APP_VERSION = 'V20';
+const APP_VERSION = 'V21';
 
 let AKTIVE_DATEI = null;  // { blattname: [ {it,de,kat,typ}, ... ], ... } — alle Decks der zuletzt geladenen xlsx
 let DECK_NAME = null;     // Name des aktuell gewählten Arbeitsblatts/Decks
@@ -1669,7 +1670,7 @@ function zeigeUploadScreen(){
       <div class="upload-fehler" id="uploadFehler"></div>
       <div class="upload-info">
         Benötigte Spalten: <strong>it</strong> (Italienisch) · <strong>de</strong> (Deutsch)<br>
-        Optional: <strong>kat</strong> (Kategorie) · <strong>notiz1</strong>, <strong>notiz2</strong> (eigene Anmerkungen, eigene Kartenseite -- notiz1 oben, notiz2 unten). Verben werden automatisch am italienischen Wort erkannt.
+        Optional: <strong>kat</strong> (Kategorie) · <strong>notiz1</strong>, <strong>notiz2</strong> (eigene Anmerkungen, je eine eigene Kartenseite zum Umblättern). Verben werden automatisch am italienischen Wort erkannt.
       </div>
       <div style="margin-top:16px;">
         <button id="btnZurueck" style="box-shadow:3px 3px 0 var(--inchiostro); font-size:13px; padding:10px 0;">← Abbrechen</button>
@@ -2010,9 +2011,9 @@ function gibFaceHTML(v, zustand){
     const beispielSatzFrage = gibBeispiel(v, frageSprache);
     const beispielHTMLFrage = beispielSatzFrage ? `<div class="beispiel">${beispielSatzFrage}</div>` : '';
     return `<div class="face front">
-      <div class="kategorie">${v.kat}</div>
+      <div class="kategorie">${zellenTextHTML(v.kat)}</div>
       ${notizBadge}
-      <div class="wort">${frage}</div>
+      <div class="wort">${zellenTextHTML(frage)}</div>
       ${beispielHTMLFrage}
       <div class="hinweis">Antippen für die Übersetzung</div>
     </div>`;
@@ -2029,13 +2030,14 @@ function gibFaceHTML(v, zustand){
     const beispielSatz = gibBeispiel(v, antwortSprache);
     const beispielHTML = beispielSatz ? `<div class="beispiel">${beispielSatz}</div>` : '';
     return `<div class="face back">
-      <div class="kategorie">${v.kat}</div>
+      <div class="kategorie">${zellenTextHTML(v.kat)}</div>
       ${notizBadge}
-      <div class="wort">${antwort}</div>
+      <div class="wort">${zellenTextHTML(antwort)}</div>
       ${beispielHTML}
       ${naechsterHinweis}
     </div>`;
   }
+  const nachKonjugation = istVerb(v) ? 2 : 1;
   if(istVerb(v) && zustand === 2){
     // Konjugation ist immer italienisch, unabhängig von der gewählten Lernrichtung
     const formen = konjugiere(v.it, v.typ);
@@ -2044,23 +2046,28 @@ function gibFaceHTML(v, zustand){
     return `<div class="face konjugation">
       <div class="kategorie">Konjugation · Presente</div>
       ${notizBadge}
-      <div class="wort" style="font-size:24px; margin-bottom:4px;">${v.it}</div>
+      <div class="wort" style="font-size:24px; margin-bottom:4px;">${zellenTextHTML(v.it)}</div>
       <table class="konj-tabelle">${zeilen}</table>
       ${hinweis}
     </div>`;
   }
-  // Letzter möglicher Zustand: die eigene Notiz (Position variiert, siehe maxZustandFuer).
-  // Zweigeteilt: notiz1 immer oben, notiz2 immer unten. Trennlinie nur, wenn
-  // wirklich beide Felder gefüllt sind -- bei nur einem gefüllten Feld wäre eine
-  // Linie ohne Gegenstück nur verwirrend.
-  const beideVorhanden = v.notiz1 && v.notiz2;
+  // Notiz-Seiten: notiz1 und notiz2 sind jetzt ZWEI getrennte Karten zum
+  // Umblättern (statt vorher einer gemeinsamen, zweigeteilten Seite).
+  // notizListe enthält nur die tatsächlich gefüllten Felder, in der
+  // Reihenfolge notiz1 -> notiz2 -- fehlt notiz1, rückt notiz2 einfach
+  // als einzige/erste Notiz-Karte nach.
+  const notizListe = [];
+  if(v.notiz1) notizListe.push(v.notiz1);
+  if(v.notiz2) notizListe.push(v.notiz2);
+  const notizIndex = zustand - nachKonjugation - 1;
+  const gibtWeitereNotiz = notizIndex < notizListe.length - 1;
+  const notizHinweis = gibtWeitereNotiz
+    ? '<div class="hinweis" style="opacity:0.5">Antippen für die nächste Notiz</div>'
+    : '';
   return `<div class="face notiz">
     <div class="kategorie">Notiz</div>
-    <div class="notiz-doppelt">
-      ${v.notiz1 ? `<div class="notiz-abschnitt"><div class="notiz-text">${v.notiz1}</div></div>` : ''}
-      ${beideVorhanden ? '<div class="notiz-trenner"></div>' : ''}
-      ${v.notiz2 ? `<div class="notiz-abschnitt"><div class="notiz-text">${v.notiz2}</div></div>` : ''}
-    </div>
+    <div class="notiz-text">${zellenTextHTML(notizListe[notizIndex])}</div>
+    ${notizHinweis}
   </div>`;
 }
 
