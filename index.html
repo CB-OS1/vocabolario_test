@@ -7,6 +7,13 @@
   Hinweis: APP_VERSION und dieser Changelog-Kommentar gab es bisher noch
   nicht in dieser Datei -- ab V16 neu eingeführt, rückwirkend kurz notiert.
 
+  V26: Beispielsatz steht bei Verben nicht mehr auf Frage-/Antwortseite,
+       sondern auf einer eigenen Kartenseite direkt nach der Konjugation
+       (zustand 3) -- zeigt beide Sprachen (it+de) untereinander, Reihen-
+       folge richtet sich nach RICHTUNG (bei DE->IT steht Deutsch oben).
+       Schriftgröße auf Beispielsatz- und Notizseiten vergrößert (13px auf
+       16px bzw. 16px auf 19px). Notizseiten-Farbe (--cielo) noch einmal
+       deutlich aufgehellt.
   V25: Konjugationsseite (bei Verben) farblich identisch zur Rückseite
        gemacht (vorher eigene dunkle Farbe) -- inkl. Tabellen-Trennlinien
        und Wort-Farbe angepasst, da jetzt heller statt dunkler Hintergrund.
@@ -96,7 +103,7 @@
     --inchiostro: #5c1a1a;     /* dunkles Weinrot, "Tinte" (ehem. Marineblau) */
     --carta: #fbf2f0;          /* Papierton, warmes Rosé-Weiß (ehem. Blauweiß) */
     --mare: #a1332f;           /* kräftiges Rot, starker Akzent (ehem. Seeblau) */
-    --cielo: #f2d8d3;          /* helles, dezentes Altrosa, Kontrastfarbe (ehem. Himmelblau) */
+    --cielo: #f8e7e4;          /* sehr helles, blasses Altrosa, Kontrastfarbe (ehem. Himmelblau) */
     --azzurro: #c94a3f;        /* klares Ziegelrot, Akzent (ehem. Azurblau) */
     --linea: rgba(92,26,26,0.14);
   }
@@ -205,6 +212,12 @@
      erkennbar ist "das ist eine Notiz", nicht Frage/Antwort/Konjugation. */
   .face.notiz{ background: var(--cielo); color: var(--inchiostro); }
 
+  /* Eigene Beispielsatz-Seite (nur bei Verben, nach der Konjugation) --
+     gleiche "dezente" Farbe wie Rückseite/Konjugation, da inhaltlich
+     dieselbe Kategorie "erklärende Zusatzseite". gap sorgt für Abstand
+     zwischen den zwei übereinanderstehenden Sätzen (it/de). */
+  .face.beispielsatz{ background: #fdf6f5; color: var(--inchiostro); gap:14px; }
+
   .face.eintretend{
     transform: scale(0.96);
     opacity: 0;
@@ -257,7 +270,7 @@
   }
 
   .beispiel{
-    font-size:13px;
+    font-size:16px;
     line-height:1.5;
     opacity:0.85;
     font-style:italic;
@@ -265,7 +278,7 @@
   }
 
   .notiz-text{
-    font-size:16px;
+    font-size:19px;
     line-height:1.6;
     max-width: 90%;
     white-space: pre-wrap;
@@ -1294,8 +1307,15 @@ function hatNotiz(v){
 // vorhanden] -> [notiz2, falls vorhanden]. notiz1 und notiz2 zählen jetzt
 // als ZWEI getrennte Zustände (zwei separate Karten zum Umblättern),
 // nicht mehr als eine gemeinsame Notiz-Seite.
+// Höchster erreichbarer zustand-Wert für eine Karte. Reihenfolge:
+// front(0) -> back(1) -> [bei Verben: konjugation(2) -> beispielsatz(3)]
+// -> [notiz1, falls vorhanden] -> [notiz2, falls vorhanden].
+// Die Beispielsatz-Seite ist ein fester Bestandteil jeder Verb-Karte (steht
+// nicht mehr auf front/back), deshalb pauschal +1 bei Verben, nicht an eine
+// Bedingung wie "gibt es einen Satz" geknüpft -- gibBeispiel() liefert bei
+// Verben ohnehin immer mindestens den italienischen Satz (siehe dort).
 function maxZustandFuer(v){
-  let max = istVerb(v) ? 2 : 1;
+  let max = istVerb(v) ? 3 : 1;
   if(v.notiz1) max += 1;
   if(v.notiz2) max += 1;
   return max;
@@ -1374,7 +1394,7 @@ function gibBeispiel(v, sprache){
 // Referenz für den Changelog-Kommentar am Dateikopf und wird beim Start in
 // die Konsole geschrieben -- praktisch, um im Browser (F12) schnell zu
 // sehen, welche Version gerade tatsächlich deployed/geladen ist.
-const APP_VERSION = 'V25';
+const APP_VERSION = 'V26';
 
 let AKTIVE_DATEI = null;  // { blattname: [ {it,de,kat,typ}, ... ], ... } — alle Decks der zuletzt geladenen xlsx
 let DECK_NAME = null;     // Name des aktuell gewählten Arbeitsblatts/Decks
@@ -2072,16 +2092,9 @@ function gibFaceHTML(v, zustand){
   const antwort = RICHTUNG === 'de-it' ? v.it : v.de;
 
   if(zustand === 0){
-    // frage ist bei IT->DE Italienisch, bei DE->IT Deutsch (siehe oben) --
-    // genau wie beim Beispielsatz auf der Rückseite muss die Sprache des Satzes
-    // zur Sprache des gerade gezeigten Worts passen.
-    const frageSprache = RICHTUNG === 'de-it' ? 'de' : 'it';
-    const beispielSatzFrage = gibBeispiel(v, frageSprache);
-    const beispielHTMLFrage = beispielSatzFrage ? `<div class="beispiel">${beispielSatzFrage}</div>` : '';
     return `<div class="face front">
       <div class="kategorie">${zellenTextHTML(v.kat)}</div>
       <div class="wort">${zellenTextHTML(frage)}</div>
-      ${beispielHTMLFrage}
       <div class="hinweis">Antippen für die Übersetzung</div>
     </div>`;
   }
@@ -2089,30 +2102,37 @@ function gibFaceHTML(v, zustand){
     const naechsterHinweis = istVerb(v)
       ? '<div class="hinweis" style="opacity:0.5">Antippen für die Konjugation</div>'
       : (hatNotiz(v) ? '<div class="hinweis" style="opacity:0.5">Antippen für deine Notiz</div>' : '');
-    // gibBeispiel() liefert bei Nomen/Adjektiven/Sonstigem jetzt einen leeren String --
-    // die beispiel-Div soll dann komplett wegfallen, nicht als leeres <div></div> im DOM stehen.
-    // antwort ist bei IT->DE Deutsch, bei DE->IT Italienisch (siehe oben) --
-    // der Beispielsatz muss in derselben Sprache stehen wie das Wort, unter dem er steht.
-    const antwortSprache = RICHTUNG === 'de-it' ? 'it' : 'de';
-    const beispielSatz = gibBeispiel(v, antwortSprache);
-    const beispielHTML = beispielSatz ? `<div class="beispiel">${beispielSatz}</div>` : '';
     return `<div class="face back">
       <div class="kategorie">${zellenTextHTML(v.kat)}</div>
       <div class="wort">${zellenTextHTML(antwort)}</div>
-      ${beispielHTML}
       ${naechsterHinweis}
     </div>`;
   }
-  const nachKonjugation = istVerb(v) ? 2 : 1;
+  const basisOhneNotiz = istVerb(v) ? 3 : 1;
   if(istVerb(v) && zustand === 2){
     // Konjugation ist immer italienisch, unabhängig von der gewählten Lernrichtung
     const formen = konjugiere(v.it, v.typ);
     const zeilen = PRONOMEN.map((p,i) => `<tr><td class="pron">${p}</td><td class="form">${formen[i]}</td></tr>`).join('');
-    const hinweis = hatNotiz(v) ? '<div class="hinweis" style="opacity:0.5">Antippen für deine Notiz</div>' : '';
     return `<div class="face konjugation">
       <div class="kategorie">Konjugation · Presente</div>
       <div class="wort" style="font-size:24px; margin-bottom:4px;">${zellenTextHTML(v.it)}</div>
       <table class="konj-tabelle">${zeilen}</table>
+      <div class="hinweis" style="opacity:0.5">Antippen für den Beispielsatz</div>
+    </div>`;
+  }
+  if(istVerb(v) && zustand === 3){
+    // Eigene Seite für den Beispielsatz (steht nicht mehr auf front/back).
+    // Zeigt IMMER beide Sprachen untereinander -- Reihenfolge richtet sich
+    // nach RICHTUNG, genau wie bei front/back: bei DE->IT steht Deutsch
+    // oben, sonst Italienisch oben.
+    const ersteSprache = RICHTUNG === 'de-it' ? 'de' : 'it';
+    const zweiteSprache = RICHTUNG === 'de-it' ? 'it' : 'de';
+    const ersterSatz = gibBeispiel(v, ersteSprache);
+    const zweiterSatz = gibBeispiel(v, zweiteSprache);
+    const hinweis = hatNotiz(v) ? '<div class="hinweis" style="opacity:0.5">Antippen für deine Notiz</div>' : '';
+    return `<div class="face beispielsatz">
+      ${ersterSatz ? `<div class="beispiel">${ersterSatz}</div>` : ''}
+      ${zweiterSatz ? `<div class="beispiel">${zweiterSatz}</div>` : ''}
       ${hinweis}
     </div>`;
   }
@@ -2124,7 +2144,7 @@ function gibFaceHTML(v, zustand){
   const notizListe = [];
   if(v.notiz1) notizListe.push(v.notiz1);
   if(v.notiz2) notizListe.push(v.notiz2);
-  const notizIndex = zustand - nachKonjugation - 1;
+  const notizIndex = zustand - basisOhneNotiz - 1;
   const gibtWeitereNotiz = notizIndex < notizListe.length - 1;
   const notizHinweis = gibtWeitereNotiz
     ? '<div class="hinweis" style="opacity:0.5">Antippen für die nächste Notiz</div>'
