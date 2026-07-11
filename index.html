@@ -7,6 +7,13 @@
   Hinweis: APP_VERSION und dieser Changelog-Kommentar gab es bisher noch
   nicht in dieser Datei -- ab V16 neu eingeführt, rückwirkend kurz notiert.
 
+  V27: Neue Spalten uebersetzung_de/uebersetzung_it unterstützt (neues
+       xlsx-Format). Sind BEIDE gefüllt, entsteht eine eigene Kartenseite
+       mit beiden Sätzen untereinander (Reihenfolge nach RICHTUNG); ist nur
+       eine oder keine gefüllt, entfällt die Seite komplett. Bei Verben
+       erscheint sie nach dem kuratierten Beispielsatz, sonst direkt nach
+       der Antwortseite. Notizseiten bleiben unverändert danach. Mit Node
+       an 5 Fallkombinationen aus der echten Beispieldatei durchgetestet.
   V26: Beispielsatz steht bei Verben nicht mehr auf Frage-/Antwortseite,
        sondern auf einer eigenen Kartenseite direkt nach der Konjugation
        (zustand 3) -- zeigt beide Sprachen (it+de) untereinander, Reihen-
@@ -217,6 +224,11 @@
      dieselbe Kategorie "erklärende Zusatzseite". gap sorgt für Abstand
      zwischen den zwei übereinanderstehenden Sätzen (it/de). */
   .face.beispielsatz{ background: #fdf6f5; color: var(--inchiostro); gap:14px; }
+
+  /* Übersetzungsseite aus den xlsx-Spalten uebersetzung_de/uebersetzung_it --
+     gleicher dezenter Stil wie die Beispielsatz-Seite (konzeptionell
+     dieselbe Kategorie "Satzpaar zur Vertiefung"). */
+  .face.uebersetzung{ background: #fdf6f5; color: var(--inchiostro); gap:14px; }
 
   .face.eintretend{
     transform: scale(0.96);
@@ -1307,8 +1319,15 @@ function hatNotiz(v){
 // vorhanden] -> [notiz2, falls vorhanden]. notiz1 und notiz2 zählen jetzt
 // als ZWEI getrennte Zustände (zwei separate Karten zum Umblättern),
 // nicht mehr als eine gemeinsame Notiz-Seite.
+// Beide Spalten müssen gefüllt sein -- bei nur einer gefüllten Spalte (oder
+// keiner) gibt's laut Anforderung KEINE eigene Seite dafür.
+function hatUebersetzung(v){
+  return !!(v.uebersetzung_de && v.uebersetzung_it);
+}
+
 // Höchster erreichbarer zustand-Wert für eine Karte. Reihenfolge:
 // front(0) -> back(1) -> [bei Verben: konjugation(2) -> beispielsatz(3)]
+// -> [übersetzung, falls uebersetzung_de UND uebersetzung_it gefüllt]
 // -> [notiz1, falls vorhanden] -> [notiz2, falls vorhanden].
 // Die Beispielsatz-Seite ist ein fester Bestandteil jeder Verb-Karte (steht
 // nicht mehr auf front/back), deshalb pauschal +1 bei Verben, nicht an eine
@@ -1316,6 +1335,7 @@ function hatNotiz(v){
 // Verben ohnehin immer mindestens den italienischen Satz (siehe dort).
 function maxZustandFuer(v){
   let max = istVerb(v) ? 3 : 1;
+  if(hatUebersetzung(v)) max += 1;
   if(v.notiz1) max += 1;
   if(v.notiz2) max += 1;
   return max;
@@ -1394,7 +1414,7 @@ function gibBeispiel(v, sprache){
 // Referenz für den Changelog-Kommentar am Dateikopf und wird beim Start in
 // die Konsole geschrieben -- praktisch, um im Browser (F12) schnell zu
 // sehen, welche Version gerade tatsächlich deployed/geladen ist.
-const APP_VERSION = 'V26';
+const APP_VERSION = 'V27';
 
 let AKTIVE_DATEI = null;  // { blattname: [ {it,de,kat,typ}, ... ], ... } — alle Decks der zuletzt geladenen xlsx
 let DECK_NAME = null;     // Name des aktuell gewählten Arbeitsblatts/Decks
@@ -1527,7 +1547,7 @@ async function wiedervorlageUmschalten(deck, v){
   const schluessel = wiedervorlageSchluessel(deck, v);
   const bestehenderIndex = WIEDERVORLAGE.findIndex(e => wiedervorlageSchluessel(e.deck, e) === schluessel);
   if(bestehenderIndex === -1){
-    WIEDERVORLAGE.push({ deck, it:v.it, de:v.de, kat:v.kat, notiz1:v.notiz1, notiz2:v.notiz2, typ:v.typ });
+    WIEDERVORLAGE.push({ deck, it:v.it, de:v.de, kat:v.kat, notiz1:v.notiz1, notiz2:v.notiz2, uebersetzung_de:v.uebersetzung_de, uebersetzung_it:v.uebersetzung_it, typ:v.typ });
   } else {
     WIEDERVORLAGE.splice(bestehenderIndex, 1);
   }
@@ -1830,6 +1850,7 @@ async function verarbeiteDatei(file){
 // mehr aus der Datei gelesen — erkenneTyp() bestimmt ihn automatisch aus "it".
 function parseSheet(zeilen){
   let headerIdx = -1, itIdx = -1, deIdx = -1, katIdx = -1, notiz1Idx = -1, notiz2Idx = -1;
+  let uebersetzungDeIdx = -1, uebersetzungItIdx = -1;
   for(let i = 0; i < Math.min(zeilen.length, 15); i++){
     const zeile = zeilen[i].map(z => (z||'').toString().trim().toLowerCase());
     const itPos = zeile.indexOf('it');
@@ -1843,6 +1864,8 @@ function parseSheet(zeilen){
       notiz1Idx = zeile.indexOf('notiz1');
       if(notiz1Idx === -1) notiz1Idx = zeile.indexOf('notizen');
       notiz2Idx = zeile.indexOf('notiz2');
+      uebersetzungDeIdx = zeile.indexOf('uebersetzung_de');
+      uebersetzungItIdx = zeile.indexOf('uebersetzung_it');
       break;
     }
   }
@@ -1858,8 +1881,8 @@ function parseSheet(zeilen){
     if(it.length > 40 || de.length > 40) continue;
     // Eine "kat"-Zelle mit Klammern (z.B. "Kategorie (optional)") verrät eine
     // Beschreibungszeile aus einer Vorlage, keinen echten Kategorienamen.
-    // Achtung: dieser Filter gilt NUR für kat, nicht für die Notiz-Spalten -- eigene
-    // Notizen dürfen völlig legitim Klammern enthalten.
+    // Achtung: dieser Filter gilt NUR für kat, nicht für die Notiz-/Übersetzungs-
+    // Spalten -- eigene Notizen/Übersetzungen dürfen völlig legitim Klammern enthalten.
     const katRoh = katIdx !== -1 ? (row[katIdx]||'').toString() : '';
     if(katRoh.includes('(')) continue;
     result.push({
@@ -1868,6 +1891,8 @@ function parseSheet(zeilen){
       kat: katIdx !== -1 ? (katRoh.trim() || 'Eigene') : 'Eigene',
       notiz1: notiz1Idx !== -1 ? (row[notiz1Idx]||'').toString().trim() : '',
       notiz2: notiz2Idx !== -1 ? (row[notiz2Idx]||'').toString().trim() : '',
+      uebersetzung_de: uebersetzungDeIdx !== -1 ? (row[uebersetzungDeIdx]||'').toString().trim() : '',
+      uebersetzung_it: uebersetzungItIdx !== -1 ? (row[uebersetzungItIdx]||'').toString().trim() : '',
       typ: erkenneTyp(it)
     });
   }
@@ -2099,52 +2124,92 @@ function gibFaceHTML(v, zustand){
     </div>`;
   }
   if(zustand === 1){
-    const naechsterHinweis = istVerb(v)
-      ? '<div class="hinweis" style="opacity:0.5">Antippen für die Konjugation</div>'
-      : (hatNotiz(v) ? '<div class="hinweis" style="opacity:0.5">Antippen für deine Notiz</div>' : '');
+    // Der Hinweis zeigt IMMER an, was als Nächstes kommt -- die Reihenfolge
+    // ist: Verb? -> Konjugation. Sonst: Übersetzungs-Spalten gefüllt? ->
+    // Übersetzung. Sonst: Notiz vorhanden? -> Notiz. Sonst gar kein Hinweis
+    // (das ist dann bereits die letzte Seite dieser Karte).
+    let naechsterHinweis = '';
+    if(istVerb(v)){
+      naechsterHinweis = '<div class="hinweis" style="opacity:0.5">Antippen für die Konjugation</div>';
+    } else if(hatUebersetzung(v)){
+      naechsterHinweis = '<div class="hinweis" style="opacity:0.5">Antippen für die Übersetzung</div>';
+    } else if(hatNotiz(v)){
+      naechsterHinweis = '<div class="hinweis" style="opacity:0.5">Antippen für deine Notiz</div>';
+    }
     return `<div class="face back">
       <div class="kategorie">${zellenTextHTML(v.kat)}</div>
       <div class="wort">${zellenTextHTML(antwort)}</div>
       ${naechsterHinweis}
     </div>`;
   }
-  const basisOhneNotiz = istVerb(v) ? 3 : 1;
-  if(istVerb(v) && zustand === 2){
-    // Konjugation ist immer italienisch, unabhängig von der gewählten Lernrichtung
-    const formen = konjugiere(v.it, v.typ);
-    const zeilen = PRONOMEN.map((p,i) => `<tr><td class="pron">${p}</td><td class="form">${formen[i]}</td></tr>`).join('');
-    return `<div class="face konjugation">
-      <div class="kategorie">Konjugation · Presente</div>
-      <div class="wort" style="font-size:24px; margin-bottom:4px;">${zellenTextHTML(v.it)}</div>
-      <table class="konj-tabelle">${zeilen}</table>
-      <div class="hinweis" style="opacity:0.5">Antippen für den Beispielsatz</div>
-    </div>`;
+
+  // Ab hier: Positionen NACH front/back. naechsteFreieZustand verfolgt immer,
+  // an welcher zustand-Nummer die jeweils nächste (optionale) Seitenart säße
+  // -- so muss nicht an jeder Stelle neu gezählt werden, welche Seiten davor
+  // tatsächlich existieren.
+  let naechsteFreieZustand;
+
+  if(istVerb(v)){
+    if(zustand === 2){
+      // Konjugation ist immer italienisch, unabhängig von der gewählten Lernrichtung.
+      // Danach kommt bei Verben IMMER der kuratierte Beispielsatz (zustand 3) --
+      // deshalb hier kein bedingter Hinweistext nötig.
+      const formen = konjugiere(v.it, v.typ);
+      const zeilen = PRONOMEN.map((p,i) => `<tr><td class="pron">${p}</td><td class="form">${formen[i]}</td></tr>`).join('');
+      return `<div class="face konjugation">
+        <div class="kategorie">Konjugation · Presente</div>
+        <div class="wort" style="font-size:24px; margin-bottom:4px;">${zellenTextHTML(v.it)}</div>
+        <table class="konj-tabelle">${zeilen}</table>
+        <div class="hinweis" style="opacity:0.5">Antippen für den Beispielsatz</div>
+      </div>`;
+    }
+    if(zustand === 3){
+      // Eigene Seite für den kuratierten Beispielsatz (steht nicht mehr auf
+      // front/back). Zeigt IMMER beide Sprachen untereinander -- Reihenfolge
+      // richtet sich nach RICHTUNG: bei DE->IT steht Deutsch oben.
+      const ersteSprache = RICHTUNG === 'de-it' ? 'de' : 'it';
+      const zweiteSprache = RICHTUNG === 'de-it' ? 'it' : 'de';
+      const ersterSatz = gibBeispiel(v, ersteSprache);
+      const zweiterSatz = gibBeispiel(v, zweiteSprache);
+      let hinweis = '';
+      if(hatUebersetzung(v)) hinweis = '<div class="hinweis" style="opacity:0.5">Antippen für die Übersetzung</div>';
+      else if(hatNotiz(v)) hinweis = '<div class="hinweis" style="opacity:0.5">Antippen für deine Notiz</div>';
+      return `<div class="face beispielsatz">
+        ${ersterSatz ? `<div class="beispiel">${ersterSatz}</div>` : ''}
+        ${zweiterSatz ? `<div class="beispiel">${zweiterSatz}</div>` : ''}
+        ${hinweis}
+      </div>`;
+    }
+    naechsteFreieZustand = 4;
+  } else {
+    naechsteFreieZustand = 2;
   }
-  if(istVerb(v) && zustand === 3){
-    // Eigene Seite für den Beispielsatz (steht nicht mehr auf front/back).
-    // Zeigt IMMER beide Sprachen untereinander -- Reihenfolge richtet sich
-    // nach RICHTUNG, genau wie bei front/back: bei DE->IT steht Deutsch
-    // oben, sonst Italienisch oben.
+
+  // Übersetzungsseite aus den xlsx-Spalten uebersetzung_de/uebersetzung_it --
+  // bei Verben nach dem kuratierten Beispielsatz, sonst direkt nach der
+  // Antwortseite. Nur wenn BEIDE Spalten gefüllt sind (siehe hatUebersetzung()).
+  if(hatUebersetzung(v) && zustand === naechsteFreieZustand){
     const ersteSprache = RICHTUNG === 'de-it' ? 'de' : 'it';
-    const zweiteSprache = RICHTUNG === 'de-it' ? 'it' : 'de';
-    const ersterSatz = gibBeispiel(v, ersteSprache);
-    const zweiterSatz = gibBeispiel(v, zweiteSprache);
+    const ersterText = ersteSprache === 'de' ? v.uebersetzung_de : v.uebersetzung_it;
+    const zweiterText = ersteSprache === 'de' ? v.uebersetzung_it : v.uebersetzung_de;
     const hinweis = hatNotiz(v) ? '<div class="hinweis" style="opacity:0.5">Antippen für deine Notiz</div>' : '';
-    return `<div class="face beispielsatz">
-      ${ersterSatz ? `<div class="beispiel">${ersterSatz}</div>` : ''}
-      ${zweiterSatz ? `<div class="beispiel">${zweiterSatz}</div>` : ''}
+    return `<div class="face uebersetzung">
+      <div class="beispiel">${zellenTextHTML(ersterText)}</div>
+      <div class="beispiel">${zellenTextHTML(zweiterText)}</div>
       ${hinweis}
     </div>`;
   }
-  // Notiz-Seiten: notiz1 und notiz2 sind jetzt ZWEI getrennte Karten zum
-  // Umblättern (statt vorher einer gemeinsamen, zweigeteilten Seite).
-  // notizListe enthält nur die tatsächlich gefüllten Felder, in der
-  // Reihenfolge notiz1 -> notiz2 -- fehlt notiz1, rückt notiz2 einfach
-  // als einzige/erste Notiz-Karte nach.
+  if(hatUebersetzung(v)) naechsteFreieZustand += 1;
+
+  // Notiz-Seiten: notiz1 und notiz2 sind zwei getrennte Karten zum
+  // Umblättern. notizListe enthält nur die tatsächlich gefüllten Felder, in
+  // der Reihenfolge notiz1 -> notiz2 -- fehlt notiz1, rückt notiz2 einfach
+  // als einzige/erste Notiz-Karte nach. naechsteFreieZustand zeigt an dieser
+  // Stelle bereits exakt auf den ersten Notiz-zustand.
   const notizListe = [];
   if(v.notiz1) notizListe.push(v.notiz1);
   if(v.notiz2) notizListe.push(v.notiz2);
-  const notizIndex = zustand - basisOhneNotiz - 1;
+  const notizIndex = zustand - naechsteFreieZustand;
   const gibtWeitereNotiz = notizIndex < notizListe.length - 1;
   const notizHinweis = gibtWeitereNotiz
     ? '<div class="hinweis" style="opacity:0.5">Antippen für die nächste Notiz</div>'
