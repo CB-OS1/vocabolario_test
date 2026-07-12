@@ -7,6 +7,10 @@
   Hinweis: APP_VERSION und dieser Changelog-Kommentar gab es bisher noch
   nicht in dieser Datei -- ab V16 neu eingeführt, rückwirkend kurz notiert.
 
+  V28: Arbeitsblatt "Anleitung" wird beim Einlesen einer xlsx jetzt komplett
+       übersprungen (statt versucht zu parsen), unabhängig von Groß-/
+       Kleinschreibung und Leerzeichen. Verhindert Fehler, egal wie das
+       Blatt aufgebaut ist.
   V27: Neue Spalten uebersetzung_de/uebersetzung_it unterstützt (neues
        xlsx-Format). Sind BEIDE gefüllt, entsteht eine eigene Kartenseite
        mit beiden Sätzen untereinander (Reihenfolge nach RICHTUNG); ist nur
@@ -1414,7 +1418,7 @@ function gibBeispiel(v, sprache){
 // Referenz für den Changelog-Kommentar am Dateikopf und wird beim Start in
 // die Konsole geschrieben -- praktisch, um im Browser (F12) schnell zu
 // sehen, welche Version gerade tatsächlich deployed/geladen ist.
-const APP_VERSION = 'V27';
+const APP_VERSION = 'V28';
 
 let AKTIVE_DATEI = null;  // { blattname: [ {it,de,kat,typ}, ... ], ... } — alle Decks der zuletzt geladenen xlsx
 let DECK_NAME = null;     // Name des aktuell gewählten Arbeitsblatts/Decks
@@ -1919,6 +1923,14 @@ function ladeSheetJSBibliothek(){
 function deckAusWorkbook(wb){
   const decks = {};
   for(const blattname of wb.SheetNames){
+    // Ein Arbeitsblatt namens "Anleitung" ist reiner Hinweistext für den
+    // Nutzer, kein Vokabel-Deck -- wird komplett übersprungen, BEVOR
+    // überhaupt versucht wird, es zu parsen. Das verhindert zuverlässig
+    // jeden Fehler, unabhängig davon, wie das Blatt aufgebaut ist (z.B.
+    // zusammengeführte Zellen, Bilder, o.ä., die parseSheet() sonst
+    // durcheinanderbringen könnten). Groß-/Kleinschreibung und
+    // Leerzeichen davor/danach spielen keine Rolle.
+    if(blattname.trim().toLowerCase() === 'anleitung') continue;
     const ws = wb.Sheets[blattname];
     const zeilen = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
     const eintraege = parseSheet(zeilen);
