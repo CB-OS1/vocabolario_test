@@ -7,6 +7,15 @@
   Hinweis: APP_VERSION und dieser Changelog-Kommentar gab es bisher noch
   nicht in dieser Datei -- ab V16 neu eingeführt, rückwirkend kurz notiert.
 
+  V30: Passato Prossimo bei essere-Verben zeigt jetzt die korrekte Genus-/
+       Numerus-Übereinstimmung statt nur der männlichen Singularform:
+       io/tu/lui-lei -> "andato/andata", noi/voi/loro -> "andati/andate".
+       Bei avere bleibt das Partizip wie schon immer in jeder Zeile
+       unverändert (keine Übereinstimmung dort, korrekt so). Alle vier
+       Formen werden rein mechanisch aus der maskulinen Singularform
+       abgeleitet (funktioniert auch bei unregelmäßigen Partizipien wie
+       "fatto" -> "fatta"/"fatti"/"fatte"). Mit Node an 6 Verben (regulär,
+       unregelmäßig, reflexiv, beide Hilfsverben) durchgetestet.
   V29: Neue Kartenseite bei Verben: Passato Prossimo, direkt nach der
        Presente-Konjugation (vor dem Beispielsatz). Neue Datenbank
        PASSATO_PROSSIMO_IRR (Hilfsverb + ggf. unregelmäßiges Partizip,
@@ -1394,15 +1403,34 @@ function gibPassatoProssimo(v){
     else participio = stamm + 'ito';
   }
 
-  // Zur Vereinfachung wird hier durchgehend die männliche Singularform des
-  // Partizips gezeigt (z.B. immer "andato", nie "andata"/"andati"/"andate").
-  // Bei essere müsste das Partizip eigentlich in Genus/Numerus zum Subjekt
-  // passen -- diese App zeigt (wie viele A1/A2-Lehrwerke als Referenzform)
-  // bewusst nur eine einzige Form, um die Tabelle einfach zu halten.
+  // Bei essere muss das Partizip in Genus/Numerus zum Subjekt passen
+  // (sono andato/andata, siamo andati/andate) -- bei avere bleibt das
+  // Partizip dagegen in JEDER Zeile unverändert (ho parlato, unabhängig
+  // vom Geschlecht). Das ist eine feste italienische Regel, keine Ausnahme.
+  //
+  // Alle vier Formen lassen sich rein mechanisch aus der maskulinen
+  // Singularform ableiten -- das gilt auch für unregelmäßige Partizipien,
+  // z.B. "fatto" -> "fatta"/"fatti"/"fatte". Einfach die letzte "o" ersetzen:
+  // -o (m.Sg.) / -a (f.Sg.) / -i (m.Pl.) / -e (f.Pl.)
+  //
+  // Da die Pronomen selbst (io/tu/noi/voi/loro) kein Genus festlegen -- nur
+  // "lui/lei" zeigt beides bereits im Pronomen selbst --, zeigen wir bei
+  // essere beide Formen nebeneinander, getrennt durch "/": maskulin/feminin.
+  // io/tu/lui-lei = Singular (Zeilen 0-2), noi/voi/loro = Plural (Zeilen 3-5).
   const formenAux = IRREGOLARI[ausiliare];
+  let partizipFuerZeile;
+  if(ausiliare === 'essere'){
+    const stammPart = participio.slice(0, -1); // ohne die letzte "o"
+    const singular = `${stammPart}o/${stammPart}a`;
+    const plural = `${stammPart}i/${stammPart}e`;
+    partizipFuerZeile = (i) => (i < 3 ? singular : plural);
+  } else {
+    partizipFuerZeile = () => participio;
+  }
+
   return {
     ausiliare,
-    formen: PRONOMEN.map((p,i) => pronRefl[i] + formenAux[i] + ' ' + participio)
+    formen: PRONOMEN.map((p,i) => pronRefl[i] + formenAux[i] + ' ' + partizipFuerZeile(i))
   };
 }
 
@@ -1534,7 +1562,7 @@ function gibBeispiel(v, sprache){
 // Referenz für den Changelog-Kommentar am Dateikopf und wird beim Start in
 // die Konsole geschrieben -- praktisch, um im Browser (F12) schnell zu
 // sehen, welche Version gerade tatsächlich deployed/geladen ist.
-const APP_VERSION = 'V29';
+const APP_VERSION = 'V30';
 
 let AKTIVE_DATEI = null;  // { blattname: [ {it,de,kat,typ}, ... ], ... } — alle Decks der zuletzt geladenen xlsx
 let DECK_NAME = null;     // Name des aktuell gewählten Arbeitsblatts/Decks
