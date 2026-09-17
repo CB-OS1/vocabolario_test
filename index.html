@@ -7,6 +7,16 @@
   Hinweis: APP_VERSION und dieser Changelog-Kommentar gab es bisher noch
   nicht in dieser Datei -- ab V16 neu eingeführt, rückwirkend kurz notiert.
 
+  V29: Neue Kartenseite bei Verben: Passato Prossimo, direkt nach der
+       Presente-Konjugation (vor dem Beispielsatz). Neue Datenbank
+       PASSATO_PROSSIMO_IRR (Hilfsverb + ggf. unregelmäßiges Partizip,
+       kuratiert für dieselben Verben wie IRREGOLARI); alle anderen Verben
+       gelten als regelmäßig (avere + Partizip nach Endung). Reflexive
+       Verben nehmen automatisch essere, auch wenn ihr Grundverb avere nimmt
+       (z.B. mettersi -> essere + irregulär "messo" von mettere). Zeigt aus
+       Vereinfachungsgründen durchgehend die männliche Singularform des
+       Partizips (kein Genus-/Numerus-Abgleich bei essere). Mit Node an 7
+       Fällen (regulär/unregelmäßig/reflexiv/isc) durchgetestet.
   V28: Arbeitsblatt "Anleitung" wird beim Einlesen einer xlsx jetzt komplett
        übersprungen (statt versucht zu parsen), unabhängig von Groß-/
        Kleinschreibung und Leerzeichen. Verhindert Fehler, egal wie das
@@ -720,6 +730,65 @@ const IRREGOLARI = {
   ridurre:     ["riduco","riduci","riduce","riduciamo","riducete","riducono"],
 };
 
+// Passato Prossimo: Hilfsverb (avere/essere) UND -- falls unregelmäßig --
+// das Partizip lassen sich nicht aus der Endung ableiten (reine lexikalische
+// Eigenschaft des jeweiligen Verbs), deshalb kuratiert, genau wie IRREGOLARI
+// selbst. Abgedeckt: dieselben Verben wie in IRREGOLARI (siehe dort) --
+// Alltagsverben, die typischerweise als Erstes gelernt werden.
+// Verben, die hier NICHT auftauchen, gelten als regelmäßig: Hilfsverb avere,
+// Partizip nach Endung gebildet (siehe gibPassatoProssimo()).
+const PASSATO_PROSSIMO_IRR = {
+  essere:      { aux:'essere', part:'stato' },
+  avere:       { aux:'avere',  part:'avuto' },
+  andare:      { aux:'essere', part:'andato' },
+  fare:        { aux:'avere',  part:'fatto' },
+  stare:       { aux:'essere', part:'stato' },
+  dare:        { aux:'avere',  part:'dato' },
+  dire:        { aux:'avere',  part:'detto' },
+  dovere:      { aux:'avere',  part:'dovuto' },
+  potere:      { aux:'avere',  part:'potuto' },
+  volere:      { aux:'avere',  part:'voluto' },
+  sapere:      { aux:'avere',  part:'saputo' },
+  venire:      { aux:'essere', part:'venuto' },
+  uscire:      { aux:'essere', part:'uscito' },
+  bere:        { aux:'avere',  part:'bevuto' },
+  prendere:    { aux:'avere',  part:'preso' },
+  mettere:     { aux:'avere',  part:'messo' },
+  chiudere:    { aux:'avere',  part:'chiuso' },
+  rispondere:  { aux:'avere',  part:'risposto' },
+  aprire:      { aux:'avere',  part:'aperto' },
+  offrire:     { aux:'avere',  part:'offerto' },
+  tradurre:    { aux:'avere',  part:'tradotto' },
+  scegliere:   { aux:'avere',  part:'scelto' },
+  rimanere:    { aux:'essere', part:'rimasto' },
+  salire:      { aux:'essere', part:'salito' },
+  tenere:      { aux:'avere',  part:'tenuto' },
+  spegnere:    { aux:'avere',  part:'spento' },
+  accendere:   { aux:'avere',  part:'acceso' },
+  nascere:     { aux:'essere', part:'nato' },
+  morire:      { aux:'essere', part:'morto' },
+  piacere:     { aux:'essere', part:'piaciuto' },
+  succedere:   { aux:'essere', part:'successo' },
+  decidere:    { aux:'avere',  part:'deciso' },
+  muovere:     { aux:'avere',  part:'mosso' },
+  riempire:    { aux:'avere',  part:'riempito' },
+  porre:       { aux:'avere',  part:'posto' },
+  trarre:      { aux:'avere',  part:'tratto' },
+  produrre:    { aux:'avere',  part:'prodotto' },
+  condurre:    { aux:'avere',  part:'condotto' },
+  cogliere:    { aux:'avere',  part:'colto' },
+  togliere:    { aux:'avere',  part:'tolto' },
+  sedere:      { aux:'essere', part:'seduto' },
+  valere:      { aux:'essere', part:'valso' },
+  udire:       { aux:'avere',  part:'udito' },
+  sciogliere:  { aux:'avere',  part:'sciolto' },
+  comporre:    { aux:'avere',  part:'composto' },
+  disporre:    { aux:'avere',  part:'disposto' },
+  proporre:    { aux:'avere',  part:'proposto' },
+  dedurre:     { aux:'avere',  part:'dedotto' },
+  ridurre:     { aux:'avere',  part:'ridotto' },
+};
+
 // Verben, die im Presente das Einschub-Infix "-isc-" verwenden (io capISCo, nicht *capo).
 // Bei -ire-Verben lässt sich das nicht aus der Endung ableiten (dormire vs. capire sehen
 // von der Endung her identisch aus) — deshalb eine explizite Positivliste. Nicht
@@ -1295,6 +1364,48 @@ function konjugiere(infinitiv, typ){
 
 function istVerb(v){ return v.typ && v.typ.startsWith("v:"); }
 
+// Berechnet das Passato Prossimo für ein Verb: welches Hilfsverb (avere/
+// essere) UND die sechs vollständigen Formen (Pronomen + Hilfsverb + Partizip).
+// Reflexive Verben nehmen IMMER essere -- das ist eine feste italienische
+// Regel, unabhängig davon, welches Hilfsverb das Grundverb sonst nimmt
+// (z.B. "mettere" -> avere, aber "mettersi" -> essere).
+function gibPassatoProssimo(v){
+  const infinitiv = v.it.trim().toLowerCase();
+  const reflexiv = /(arsi|ersi|irsi)$/.test(infinitiv);
+  const pronRefl = reflexiv ? ["mi ","ti ","si ","ci ","vi ","si "] : ["","","","","",""];
+  // Gleiche Rückführung auf die Grundform wie in erkenneTyp()/konjugiere():
+  // "svegliarsi" -> "svegliare", damit die Partizip-Bildung bzw. der Nachschlag
+  // in PASSATO_PROSSIMO_IRR auf dem "echten" Infinitiv arbeitet.
+  const basis = basisInfinitiv(infinitiv);
+  const eintrag = PASSATO_PROSSIMO_IRR[basis];
+
+  const ausiliare = reflexiv ? 'essere' : (eintrag ? eintrag.aux : 'avere');
+
+  let participio;
+  if(eintrag){
+    participio = eintrag.part;
+  } else {
+    // Regelmäßige Partizip-Bildung direkt aus der Endung von basis, unabhängig
+    // von v.typ -- funktioniert dadurch auch für v:isc-Verben korrekt (das
+    // isc-Infix betrifft nur das Presente, nicht das Partizip: capire -> capito).
+    const stamm = basis.slice(0, -3);
+    if(basis.endsWith('are')) participio = stamm + 'ato';
+    else if(basis.endsWith('ere')) participio = stamm + 'uto';
+    else participio = stamm + 'ito';
+  }
+
+  // Zur Vereinfachung wird hier durchgehend die männliche Singularform des
+  // Partizips gezeigt (z.B. immer "andato", nie "andata"/"andati"/"andate").
+  // Bei essere müsste das Partizip eigentlich in Genus/Numerus zum Subjekt
+  // passen -- diese App zeigt (wie viele A1/A2-Lehrwerke als Referenzform)
+  // bewusst nur eine einzige Form, um die Tabelle einfach zu halten.
+  const formenAux = IRREGOLARI[ausiliare];
+  return {
+    ausiliare,
+    formen: PRONOMEN.map((p,i) => pronRefl[i] + formenAux[i] + ' ' + participio)
+  };
+}
+
 // Wandelt den Text EXAKT so um, wie er in der xlsx-Zelle steht -- inklusive
 // Zeilenumbrüchen, die durch Strg+Enter (bzw. Alt+Enter) innerhalb einer
 // Zelle entstanden sind. SheetJS liest solche Umbrüche als normale "\n"-
@@ -1337,8 +1448,13 @@ function hatUebersetzung(v){
 // nicht mehr auf front/back), deshalb pauschal +1 bei Verben, nicht an eine
 // Bedingung wie "gibt es einen Satz" geknüpft -- gibBeispiel() liefert bei
 // Verben ohnehin immer mindestens den italienischen Satz (siehe dort).
+// Höchster erreichbarer zustand-Wert für eine Karte. Reihenfolge:
+// front(0) -> back(1) -> [bei Verben: konjugation-presente(2) ->
+// passato-prossimo(3) -> beispielsatz(4)] -> [übersetzung, falls
+// uebersetzung_de UND uebersetzung_it gefüllt] -> [notiz1, falls vorhanden]
+// -> [notiz2, falls vorhanden].
 function maxZustandFuer(v){
-  let max = istVerb(v) ? 3 : 1;
+  let max = istVerb(v) ? 4 : 1;
   if(hatUebersetzung(v)) max += 1;
   if(v.notiz1) max += 1;
   if(v.notiz2) max += 1;
@@ -1418,7 +1534,7 @@ function gibBeispiel(v, sprache){
 // Referenz für den Changelog-Kommentar am Dateikopf und wird beim Start in
 // die Konsole geschrieben -- praktisch, um im Browser (F12) schnell zu
 // sehen, welche Version gerade tatsächlich deployed/geladen ist.
-const APP_VERSION = 'V28';
+const APP_VERSION = 'V29';
 
 let AKTIVE_DATEI = null;  // { blattname: [ {it,de,kat,typ}, ... ], ... } — alle Decks der zuletzt geladenen xlsx
 let DECK_NAME = null;     // Name des aktuell gewählten Arbeitsblatts/Decks
@@ -2163,19 +2279,32 @@ function gibFaceHTML(v, zustand){
 
   if(istVerb(v)){
     if(zustand === 2){
-      // Konjugation ist immer italienisch, unabhängig von der gewählten Lernrichtung.
-      // Danach kommt bei Verben IMMER der kuratierte Beispielsatz (zustand 3) --
-      // deshalb hier kein bedingter Hinweistext nötig.
+      // Konjugation (Presente) ist immer italienisch, unabhängig von der
+      // gewählten Lernrichtung. Danach kommt bei Verben IMMER das Passato
+      // Prossimo (zustand 3) -- deshalb hier kein bedingter Hinweistext nötig.
       const formen = konjugiere(v.it, v.typ);
       const zeilen = PRONOMEN.map((p,i) => `<tr><td class="pron">${p}</td><td class="form">${formen[i]}</td></tr>`).join('');
       return `<div class="face konjugation">
         <div class="kategorie">Konjugation · Presente</div>
         <div class="wort" style="font-size:24px; margin-bottom:4px;">${zellenTextHTML(v.it)}</div>
         <table class="konj-tabelle">${zeilen}</table>
-        <div class="hinweis" style="opacity:0.5">Antippen für den Beispielsatz</div>
+        <div class="hinweis" style="opacity:0.5">Antippen für das Passato Prossimo</div>
       </div>`;
     }
     if(zustand === 3){
+      // Neue Seite: Passato Prossimo, direkt nach der Presente-Konjugation.
+      // Danach kommt bei Verben IMMER der kuratierte Beispielsatz (zustand 4)
+      // -- deshalb auch hier kein bedingter Hinweistext nötig.
+      const pp = gibPassatoProssimo(v);
+      const zeilen = PRONOMEN.map((p,i) => `<tr><td class="pron">${p}</td><td class="form">${pp.formen[i]}</td></tr>`).join('');
+      return `<div class="face konjugation">
+        <div class="kategorie">Konjugation · Passato Prossimo (${pp.ausiliare})</div>
+        <div class="wort" style="font-size:24px; margin-bottom:4px;">${zellenTextHTML(v.it)}</div>
+        <table class="konj-tabelle">${zeilen}</table>
+        <div class="hinweis" style="opacity:0.5">Antippen für den Beispielsatz</div>
+      </div>`;
+    }
+    if(zustand === 4){
       // Eigene Seite für den kuratierten Beispielsatz (steht nicht mehr auf
       // front/back). Zeigt IMMER beide Sprachen untereinander -- Reihenfolge
       // richtet sich nach RICHTUNG: bei DE->IT steht Deutsch oben.
@@ -2192,7 +2321,7 @@ function gibFaceHTML(v, zustand){
         ${hinweis}
       </div>`;
     }
-    naechsteFreieZustand = 4;
+    naechsteFreieZustand = 5;
   } else {
     naechsteFreieZustand = 2;
   }
