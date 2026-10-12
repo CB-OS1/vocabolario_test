@@ -7,6 +7,13 @@
   Hinweis: APP_VERSION und dieser Changelog-Kommentar gab es bisher noch
   nicht in dieser Datei -- ab V16 neu eingeführt, rückwirkend kurz notiert.
 
+  V31: (1) Übersetzung (uebersetzung_de/uebersetzung_it) steht jetzt auf
+       ZWEI getrennten Karten statt einer: zuerst die Sprache der Richtung
+       (it->de: Italienisch, de->it: Deutsch), nach dem Umblättern die
+       andere. maxZustandFuer zählt dafür +2. (2) PASSATO_PROSSIMO_IRR stark
+       erweitert (leggere, scrivere, vedere, vincere, chiudere, ... plus
+       viele essere-Verben wie arrivare, partire, tornare, cadere), damit
+       Partizip und Hilfsverb für die Verben der 500er-Liste stimmen.
   V30: Passato Prossimo bei essere-Verben zeigt jetzt die korrekte Genus-/
        Numerus-Übereinstimmung statt nur der männlichen Singularform:
        io/tu/lui-lei -> "andato/andata", noi/voi/loro -> "andati/andate".
@@ -796,6 +803,116 @@ const PASSATO_PROSSIMO_IRR = {
   proporre:    { aux:'avere',  part:'proposto' },
   dedurre:     { aux:'avere',  part:'dedotto' },
   ridurre:     { aux:'avere',  part:'ridotto' },
+  // --- V31: erweitert (500-Verben-Liste + häufige Unregelmäßige/essere-Verben) ---
+  leggere:     { aux:'avere',  part:'letto' },
+  scrivere:    { aux:'avere',  part:'scritto' },
+  vedere:      { aux:'avere',  part:'visto' },
+  vincere:     { aux:'avere',  part:'vinto' },
+  vivere:      { aux:'avere',  part:'vissuto' },
+  perdere:     { aux:'avere',  part:'perso' },
+  chiedere:    { aux:'avere',  part:'chiesto' },
+  rompere:     { aux:'avere',  part:'rotto' },
+  nascondere:  { aux:'avere',  part:'nascosto' },
+  conoscere:   { aux:'avere',  part:'conosciuto' },
+  riconoscere: { aux:'avere',  part:'riconosciuto' },
+  coprire:     { aux:'avere',  part:'coperto' },
+  scoprire:    { aux:'avere',  part:'scoperto' },
+  soffrire:    { aux:'avere',  part:'sofferto' },
+  permettere:  { aux:'avere',  part:'permesso' },
+  promettere:  { aux:'avere',  part:'promesso' },
+  smettere:    { aux:'avere',  part:'smesso' },
+  dimettere:   { aux:'avere',  part:'dimesso' },
+  ammettere:   { aux:'avere',  part:'ammesso' },
+  prescrivere: { aux:'avere',  part:'prescritto' },
+  iscrivere:   { aux:'avere',  part:'iscritto' },
+  ridere:      { aux:'avere',  part:'riso' },
+  sorridere:   { aux:'avere',  part:'sorriso' },
+  piangere:    { aux:'avere',  part:'pianto' },
+  dipingere:   { aux:'avere',  part:'dipinto' },
+  spingere:    { aux:'avere',  part:'spinto' },
+  distruggere: { aux:'avere',  part:'distrutto' },
+  raggiungere: { aux:'avere',  part:'raggiunto' },
+  aggiungere:  { aux:'avere',  part:'aggiunto' },
+  confondere:  { aux:'avere',  part:'confuso' },
+  dividere:    { aux:'avere',  part:'diviso' },
+  condividere: { aux:'avere',  part:'condiviso' },
+  prevedere:   { aux:'avere',  part:'previsto' },
+  cuocere:     { aux:'avere',  part:'cotto' },
+  friggere:    { aux:'avere',  part:'fritto' },
+  accorgere:   { aux:'essere', part:'accorto' },
+  raccogliere: { aux:'avere',  part:'raccolto' },
+  deludere:    { aux:'avere',  part:'deluso' },
+  soddisfare:  { aux:'avere',  part:'soddisfatto' },
+  costringere: { aux:'avere',  part:'costretto' },
+  convincere:  { aux:'avere',  part:'convinto' },
+  persuadere:  { aux:'avere',  part:'persuaso' },
+  difendere:   { aux:'avere',  part:'difeso' },
+  proteggere:  { aux:'avere',  part:'protetto' },
+  sostenere:   { aux:'avere',  part:'sostenuto' },
+  sorprendere: { aux:'avere',  part:'sorpreso' },
+  vendere:     { aux:'avere',  part:'venduto' },
+  discutere:   { aux:'avere',  part:'discusso' },
+  riassumere:  { aux:'avere',  part:'riassunto' },
+  assumere:    { aux:'avere',  part:'assunto' },
+  presumere:   { aux:'avere',  part:'presunto' },
+  riflettere:  { aux:'avere',  part:'riflettuto' },
+  restringere: { aux:'avere',  part:'ristretto' },
+  appendere:   { aux:'avere',  part:'appeso' },
+  stendere:    { aux:'avere',  part:'steso' },
+  rifare:      { aux:'avere',  part:'rifatto' },
+  scuotere:    { aux:'avere',  part:'scosso' },
+  rendere:     { aux:'avere',  part:'reso' },
+  correggere:  { aux:'avere',  part:'corretto' },
+  promuovere:  { aux:'avere',  part:'promosso' },
+  possedere:   { aux:'avere',  part:'posseduto' },
+  accadere:    { aux:'essere', part:'accaduto' },
+  avvenire:    { aux:'essere', part:'avvenuto' },
+  correre:     { aux:'avere',  part:'corso' },
+  cadere:      { aux:'essere', part:'caduto' },
+  crescere:    { aux:'essere', part:'cresciuto' },
+  scendere:    { aux:'essere', part:'sceso' },
+  apparire:    { aux:'essere', part:'apparso' },
+  scomparire:  { aux:'essere', part:'scomparso' },
+  sparire:     { aux:'essere', part:'sparito' },
+  sembrare:    { aux:'essere', part:'sembrato' },
+  capitare:    { aux:'essere', part:'capitato' },
+  arrivare:    { aux:'essere', part:'arrivato' },
+  tornare:     { aux:'essere', part:'tornato' },
+  entrare:     { aux:'essere', part:'entrato' },
+  partire:     { aux:'essere', part:'partito' },
+  riuscire:    { aux:'essere', part:'riuscito' },
+  durare:      { aux:'essere', part:'durato' },
+  mancare:     { aux:'essere', part:'mancato' },
+  bastare:     { aux:'essere', part:'bastato' },
+  importare:   { aux:'essere', part:'importato' },
+  interessare: { aux:'essere', part:'interessato' },
+  occorrere:   { aux:'essere', part:'occorso' },
+  dispiacere:  { aux:'essere', part:'dispiaciuto' },
+  bisognare:   { aux:'essere', part:'bisognato' },
+  convenire:   { aux:'essere', part:'convenuto' },
+  risultare:   { aux:'essere', part:'risultato' },
+  appartenere: { aux:'essere', part:'appartenuto' },
+  scadere:     { aux:'essere', part:'scaduto' },
+  diventare:   { aux:'essere', part:'diventato' },
+  restare:     { aux:'essere', part:'restato' },
+  ingrassare:  { aux:'essere', part:'ingrassato' },
+  dimagrire:   { aux:'essere', part:'dimagrito' },
+  fiorire:     { aux:'essere', part:'fiorito' },
+  appassire:   { aux:'essere', part:'appassito' },
+  marcire:     { aux:'essere', part:'marcito' },
+  svanire:     { aux:'essere', part:'svanito' },
+  impazzire:   { aux:'essere', part:'impazzito' },
+  piovere:     { aux:'essere', part:'piovuto' },
+  nevicare:    { aux:'essere', part:'nevicato' },
+  gelare:      { aux:'essere', part:'gelato' },
+  emigrare:    { aux:'essere', part:'emigrato' },
+  immigrare:   { aux:'essere', part:'immigrato' },
+  atterrare:   { aux:'essere', part:'atterrato' },
+  decollare:   { aux:'essere', part:'decollato' },
+  volare:      { aux:'essere', part:'volato' },
+  saltare:     { aux:'essere', part:'saltato' },
+  giungere:    { aux:'essere', part:'giunto' },
+  tacere:      { aux:'avere',  part:'taciuto' },
 };
 
 // Verben, die im Presente das Einschub-Infix "-isc-" verwenden (io capISCo, nicht *capo).
@@ -1483,7 +1600,7 @@ function hatUebersetzung(v){
 // -> [notiz2, falls vorhanden].
 function maxZustandFuer(v){
   let max = istVerb(v) ? 4 : 1;
-  if(hatUebersetzung(v)) max += 1;
+  if(hatUebersetzung(v)) max += 2;   // V31: zwei getrennte Karten (1. Sprache, 2. Sprache)
   if(v.notiz1) max += 1;
   if(v.notiz2) max += 1;
   return max;
@@ -1562,7 +1679,7 @@ function gibBeispiel(v, sprache){
 // Referenz für den Changelog-Kommentar am Dateikopf und wird beim Start in
 // die Konsole geschrieben -- praktisch, um im Browser (F12) schnell zu
 // sehen, welche Version gerade tatsächlich deployed/geladen ist.
-const APP_VERSION = 'V30';
+const APP_VERSION = 'V31';
 
 let AKTIVE_DATEI = null;  // { blattname: [ {it,de,kat,typ}, ... ], ... } — alle Decks der zuletzt geladenen xlsx
 let DECK_NAME = null;     // Name des aktuell gewählten Arbeitsblatts/Decks
@@ -2357,18 +2474,22 @@ function gibFaceHTML(v, zustand){
   // Übersetzungsseite aus den xlsx-Spalten uebersetzung_de/uebersetzung_it --
   // bei Verben nach dem kuratierten Beispielsatz, sonst direkt nach der
   // Antwortseite. Nur wenn BEIDE Spalten gefüllt sind (siehe hatUebersetzung()).
-  if(hatUebersetzung(v) && zustand === naechsteFreieZustand){
+  if(hatUebersetzung(v) && (zustand === naechsteFreieZustand || zustand === naechsteFreieZustand + 1)){
+    // V31: zwei getrennte Karten. Erste Karte = Sprache der Lernrichtung
+    // (it-de -> Italienisch zuerst, de-it -> Deutsch zuerst), zweite Karte = die andere.
     const ersteSprache = RICHTUNG === 'de-it' ? 'de' : 'it';
     const ersterText = ersteSprache === 'de' ? v.uebersetzung_de : v.uebersetzung_it;
     const zweiterText = ersteSprache === 'de' ? v.uebersetzung_it : v.uebersetzung_de;
-    const hinweis = hatNotiz(v) ? '<div class="hinweis" style="opacity:0.5">Antippen für deine Notiz</div>' : '';
+    const istErste = zustand === naechsteFreieZustand;
+    let hinweis = '';
+    if(istErste) hinweis = '<div class="hinweis" style="opacity:0.5">Antippen für die Übersetzung</div>';
+    else if(hatNotiz(v)) hinweis = '<div class="hinweis" style="opacity:0.5">Antippen für deine Notiz</div>';
     return `<div class="face uebersetzung">
-      <div class="beispiel">${zellenTextHTML(ersterText)}</div>
-      <div class="beispiel">${zellenTextHTML(zweiterText)}</div>
+      <div class="beispiel">${zellenTextHTML(istErste ? ersterText : zweiterText)}</div>
       ${hinweis}
     </div>`;
   }
-  if(hatUebersetzung(v)) naechsteFreieZustand += 1;
+  if(hatUebersetzung(v)) naechsteFreieZustand += 2;
 
   // Notiz-Seiten: notiz1 und notiz2 sind zwei getrennte Karten zum
   // Umblättern. notizListe enthält nur die tatsächlich gefüllten Felder, in
