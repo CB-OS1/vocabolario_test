@@ -7,6 +7,11 @@
   Hinweis: APP_VERSION und dieser Changelog-Kommentar gab es bisher noch
   nicht in dieser Datei -- ab V16 neu eingeführt, rückwirkend kurz notiert.
 
+  V32: Beschriftung oben links (Klasse .kategorie, gleiche Stelle wie die
+       Kategorie auf der Rückseite): Übersetzungsseiten zeigen "Deutsch"
+       bzw. "Italienisch" (je nach angezeigtem Satz), Notizseiten "Notiz 1"
+       bzw. "Notiz 2". Ist notiz1 leer, heißt die nachrückende Karte
+       trotzdem "Notiz 2" (Label hängt am Feld, nicht an der Position).
   V31: (1) Übersetzung (uebersetzung_de/uebersetzung_it) steht jetzt auf
        ZWEI getrennten Karten statt einer: zuerst die Sprache der Richtung
        (it->de: Italienisch, de->it: Deutsch), nach dem Umblättern die
@@ -1679,7 +1684,7 @@ function gibBeispiel(v, sprache){
 // Referenz für den Changelog-Kommentar am Dateikopf und wird beim Start in
 // die Konsole geschrieben -- praktisch, um im Browser (F12) schnell zu
 // sehen, welche Version gerade tatsächlich deployed/geladen ist.
-const APP_VERSION = 'V31';
+const APP_VERSION = 'V32';
 
 let AKTIVE_DATEI = null;  // { blattname: [ {it,de,kat,typ}, ... ], ... } — alle Decks der zuletzt geladenen xlsx
 let DECK_NAME = null;     // Name des aktuell gewählten Arbeitsblatts/Decks
@@ -2484,7 +2489,12 @@ function gibFaceHTML(v, zustand){
     let hinweis = '';
     if(istErste) hinweis = '<div class="hinweis" style="opacity:0.5">Antippen für die Übersetzung</div>';
     else if(hatNotiz(v)) hinweis = '<div class="hinweis" style="opacity:0.5">Antippen für deine Notiz</div>';
+    // V32: Beschriftung oben links (gleiche Stelle/Optik wie die Kategorie)
+    // = Sprache des angezeigten Satzes.
+    const angezeigteSprache = istErste ? ersteSprache : (ersteSprache === 'de' ? 'it' : 'de');
+    const sprachLabel = angezeigteSprache === 'de' ? 'Deutsch' : 'Italienisch';
     return `<div class="face uebersetzung">
+      <div class="kategorie">${sprachLabel}</div>
       <div class="beispiel">${zellenTextHTML(istErste ? ersterText : zweiterText)}</div>
       ${hinweis}
     </div>`;
@@ -2496,17 +2506,22 @@ function gibFaceHTML(v, zustand){
   // der Reihenfolge notiz1 -> notiz2 -- fehlt notiz1, rückt notiz2 einfach
   // als einzige/erste Notiz-Karte nach. naechsteFreieZustand zeigt an dieser
   // Stelle bereits exakt auf den ersten Notiz-zustand.
+  // V32: Jeder Eintrag merkt sich sein Label ("Notiz 1"/"Notiz 2") -- so
+  // bleibt die Beschriftung korrekt, auch wenn notiz1 leer ist und notiz2
+  // als erste Notiz-Karte nachrückt.
   const notizListe = [];
-  if(v.notiz1) notizListe.push(v.notiz1);
-  if(v.notiz2) notizListe.push(v.notiz2);
+  const notizLabels = [];
+  if(v.notiz1){ notizListe.push(v.notiz1); notizLabels.push('Notiz 1'); }
+  if(v.notiz2){ notizListe.push(v.notiz2); notizLabels.push('Notiz 2'); }
   const notizIndex = zustand - naechsteFreieZustand;
   const gibtWeitereNotiz = notizIndex < notizListe.length - 1;
   const notizHinweis = gibtWeitereNotiz
     ? '<div class="hinweis" style="opacity:0.5">Antippen für die nächste Notiz</div>'
     : '';
-  // Bewusst keine "Notiz"-Beschriftung mehr oben links -- die Notizseite
-  // ist stattdessen jetzt farblich erkennbar (siehe .face.notiz-CSS).
+  // Ab V32 wieder mit Beschriftung oben links ("Notiz 1"/"Notiz 2"),
+  // zusätzlich zur Farbe (siehe .face.notiz-CSS).
   return `<div class="face notiz">
+    <div class="kategorie">${notizLabels[notizIndex]}</div>
     <div class="notiz-text">${zellenTextHTML(notizListe[notizIndex])}</div>
     ${notizHinweis}
   </div>`;
