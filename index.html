@@ -7,6 +7,12 @@
   Hinweis: APP_VERSION und dieser Changelog-Kommentar gab es bisher noch
   nicht in dieser Datei -- ab V16 neu eingeführt, rückwirkend kurz notiert.
 
+  V33: (1) Hat ein Wort in der xlsx eigene Übersetzungen (uebersetzung_de UND
+       uebersetzung_it), entfällt bei Verben die kuratierte Beispielsatz-Seite;
+       ohne eigene Übersetzung bleibt sie wie bisher. maxZustandFuer und die
+       Seitenzählung in gibFaceHTML wurden dafür angepasst. (2) In der
+       Listenansicht ist jede Zeile anklickbar und startet die Karteikarten
+       ab diesem Wort (immer in Listenreihenfolge, also "sortiert").
   V32: Beschriftung oben links (Klasse .kategorie, gleiche Stelle wie die
        Kategorie auf der Rückseite): Übersetzungsseiten zeigen "Deutsch"
        bzw. "Italienisch" (je nach angezeigtem Satz), Notizseiten "Notiz 1"
@@ -489,6 +495,10 @@
     border-bottom: 1px solid rgba(23,50,79,0.12);
   }
   .liste-tabelle tr:nth-child(even) td{ background: rgba(63,143,209,0.06); }
+  /* V33: Zeilen sind anklickbar (springen zur Karteikarte) */
+  .liste-tabelle tr.liste-zeile{ cursor:pointer; }
+  .liste-tabelle tr.liste-zeile:hover td,
+  .liste-tabelle tr.liste-zeile:active td{ background: rgba(161,51,47,0.12); }
   .niveau-wechsel{
     text-align:center;
     margin-top: 12px;
@@ -1604,7 +1614,10 @@ function hatUebersetzung(v){
 // uebersetzung_de UND uebersetzung_it gefüllt] -> [notiz1, falls vorhanden]
 // -> [notiz2, falls vorhanden].
 function maxZustandFuer(v){
-  let max = istVerb(v) ? 4 : 1;
+  // V33: Verb = Presente(2) + Passato(3) + kuratierter Beispielsatz(4) --
+  // der kuratierte Satz entfällt aber, sobald die xlsx eigene Übersetzungen
+  // (beide Spalten) enthält. Dann zählt das Verb nur bis 3.
+  let max = istVerb(v) ? (hatUebersetzung(v) ? 3 : 4) : 1;
   if(hatUebersetzung(v)) max += 2;   // V31: zwei getrennte Karten (1. Sprache, 2. Sprache)
   if(v.notiz1) max += 1;
   if(v.notiz2) max += 1;
@@ -1684,7 +1697,7 @@ function gibBeispiel(v, sprache){
 // Referenz für den Changelog-Kommentar am Dateikopf und wird beim Start in
 // die Konsole geschrieben -- praktisch, um im Browser (F12) schnell zu
 // sehen, welche Version gerade tatsächlich deployed/geladen ist.
-const APP_VERSION = 'V32';
+const APP_VERSION = 'V33';
 
 let AKTIVE_DATEI = null;  // { blattname: [ {it,de,kat,typ}, ... ], ... } — alle Decks der zuletzt geladenen xlsx
 let DECK_NAME = null;     // Name des aktuell gewählten Arbeitsblatts/Decks
@@ -2358,8 +2371,10 @@ function zeigeListenAnsicht(){
   // ist kein Eintrag in AKTIVE_DATEI, sondern die eigene WIEDERVORLAGE-Liste.
   const quelle = DECK_NAME === WIEDERVORLAGE_DECK ? WIEDERVORLAGE : AKTIVE_DATEI[DECK_NAME];
 
-  const zeilen = quelle.map(v => `
-    <tr><td>${escape(v[ersteSpalte])}</td><td>${escape(v[zweiteSpalte])}</td></tr>
+  // V33: data-index merkt sich die Position der Zeile in 'quelle', damit der
+  // Klick-Handler unten weiß, welches Wort gemeint ist.
+  const zeilen = quelle.map((v, i) => `
+    <tr class="liste-zeile" data-index="${i}"><td>${escape(v[ersteSpalte])}</td><td>${escape(v[zweiteSpalte])}</td></tr>
   `).join('');
 
   stage.innerHTML = `
@@ -2378,6 +2393,29 @@ function zeigeListenAnsicht(){
   `;
 
   document.getElementById('btnListeZurueck').onclick = () => zeigeSortierAuswahl();
+
+  // V33: EIN Klick-Handler auf dem <tbody> statt einer pro Zeile ("Event
+  // Delegation"): Klicks auf Zellen "blubbern" nach oben, e.target.closest()
+  // findet die zugehörige Zeile. Spart Handler und funktioniert für beliebig
+  // lange Listen.
+  stage.querySelector('.liste-tabelle tbody').addEventListener('click', e => {
+    const zeile = e.target.closest('tr.liste-zeile');
+    if(!zeile) return;
+    starteKartenAb(parseInt(zeile.dataset.index, 10));
+  });
+}
+
+// Springt aus der Liste in die normale Karteikartenlogik, beginnend beim
+// angeklickten Wort. Die Liste ist in Originalreihenfolge -> wir starten
+// "sortiert", damit idx exakt auf die angeklickte Zeile zeigt (bei gemischter
+// Reihenfolge würde derselbe Index ein anderes Wort treffen). Danach läuft
+// alles wie gewohnt: Weiter/Zurück, Wischen, Wiedervorlage ...
+function starteKartenAb(startIndex){
+  SORTIERT = true;
+  VOKABELN = vokabelnNeuLaden();
+  idx = startIndex;
+  resetRow.style.display = 'block';
+  render();
 }
 
 function waehleSortierung(sortiert){
@@ -2451,10 +2489,11 @@ function gibFaceHTML(v, zustand){
         <div class="kategorie">Konjugation · Passato Prossimo (${pp.ausiliare})</div>
         <div class="wort" style="font-size:24px; margin-bottom:4px;">${zellenTextHTML(v.it)}</div>
         <table class="konj-tabelle">${zeilen}</table>
-        <div class="hinweis" style="opacity:0.5">Antippen für den Beispielsatz</div>
+        <div class="hinweis" style="opacity:0.5">${hatUebersetzung(v) ? 'Antippen für die Übersetzung' : 'Antippen für den Beispielsatz'}</div>
       </div>`;
     }
-    if(zustand === 4){
+    // V33: Kuratierte Beispielsatz-Seite nur, wenn KEINE eigene xlsx-Übersetzung da ist.
+    if(!hatUebersetzung(v) && zustand === 4){
       // Eigene Seite für den kuratierten Beispielsatz (steht nicht mehr auf
       // front/back). Zeigt IMMER beide Sprachen untereinander -- Reihenfolge
       // richtet sich nach RICHTUNG: bei DE->IT steht Deutsch oben.
@@ -2463,15 +2502,14 @@ function gibFaceHTML(v, zustand){
       const ersterSatz = gibBeispiel(v, ersteSprache);
       const zweiterSatz = gibBeispiel(v, zweiteSprache);
       let hinweis = '';
-      if(hatUebersetzung(v)) hinweis = '<div class="hinweis" style="opacity:0.5">Antippen für die Übersetzung</div>';
-      else if(hatNotiz(v)) hinweis = '<div class="hinweis" style="opacity:0.5">Antippen für deine Notiz</div>';
+      if(hatNotiz(v)) hinweis = '<div class="hinweis" style="opacity:0.5">Antippen für deine Notiz</div>';
       return `<div class="face beispielsatz">
         ${ersterSatz ? `<div class="beispiel">${ersterSatz}</div>` : ''}
         ${zweiterSatz ? `<div class="beispiel">${zweiterSatz}</div>` : ''}
         ${hinweis}
       </div>`;
     }
-    naechsteFreieZustand = 5;
+    naechsteFreieZustand = hatUebersetzung(v) ? 4 : 5;   // V33: ohne kuratierten Satz rückt alles um 1 vor
   } else {
     naechsteFreieZustand = 2;
   }
